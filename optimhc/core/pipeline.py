@@ -30,10 +30,10 @@ class Pipeline:
             config_path (str): Path to the YAML configuration file.
         """
         self.config = load_config(config_path)
-        self.output_dir = self.config['output_dir']
+        self.experiment = self.config.get('experimentName', 'optimhc_experiment') 
+        self.output_dir = os.path.join(self.config['output_dir'], self.experiment)
         os.makedirs(self.output_dir, exist_ok=True)
-        log_file = self.config['log_file']
-        setup_loggers(log_file)
+        setup_loggers(os.path.join(self.output_dir, 'log'))
 
         
     def read_input(self):
@@ -43,14 +43,14 @@ class Pipeline:
         Returns:
             PsmContainer: An object containing the loaded PSMs.
         """
-        input_type = self.config['input_type']
-        input_files = self.config['input_files']
+        input_type = self.config['inputType']
+        input_files = self.config['inputFile']
         if not isinstance(input_files, list):
-            raise ValueError("input_files should be a list of file paths.")
+            input_files = [input_files]
         
         try:
             if input_type == 'pepxml':
-                psms = read_pepxml(input_files, decoy_prefix=self.config['decoy_prefix'])
+                psms = read_pepxml(input_files, decoy_prefix=self.config['decoyPrefix'])
             elif input_type == 'pin':
                 psms = read_pin(input_files)
             else:
@@ -78,15 +78,15 @@ class Pipeline:
         rescore_config = self.config['rescore']
         
         # Use provided parameters or fall back to config values
-        test_fdr = test_fdr if test_fdr is not None else rescore_config['test_fdr']
+        test_fdr = test_fdr if test_fdr is not None else rescore_config['testFDR']
         model_type = model_type if model_type is not None else rescore_config['model']
-        n_jobs = n_jobs if n_jobs is not None else rescore_config['n_jobs']
+        n_jobs = n_jobs if n_jobs is not None else rescore_config['numJobs']
         
-        if model_type == 'xgboost':
+        if model_type == 'XGBoost':
             model = XGBoostPercolatorModel(n_jobs=n_jobs)
-        elif model_type == 'random_forest':
+        elif model_type == 'RandomForest':
             model = RandomForestPercolatorModel(n_jobs=n_jobs)
-        elif model_type == 'percolator':
+        elif model_type == 'Percolator':
             model = PercolatorModel(n_jobs=n_jobs)
         else:
             model = PercolatorModel(n_jobs=n_jobs)
@@ -107,31 +107,31 @@ class Pipeline:
             psms (PsmContainer): The PSM container object.
             results (mokapot.Results): The rescoring results.
         """
-        results.to_txt(dest_dir=self.output_dir, decoys=True)
-        psms.psms.to_csv(os.path.join(self.output_dir, 'psms.csv'), index=False)
-        psms.write_pin(os.path.join(self.output_dir, 'all.pin'))
+        results.to_txt(dest_dir=self.output_dir, file_root="optimhc", decoys=True)
+        # psms.psms.to_csv(os.path.join(self.output_dir, 'psms.csv'), index=False)
+        psms.write_pin(os.path.join(self.output_dir, f'{self.experiment}.optimhc.pin'))
 
         # Merge and save full information
-        df_combined = pd.concat([
-            results.confidence_estimates['psms'],
-            results.decoy_confidence_estimates['psms']
-        ], axis=0)
+        # df_combined = pd.concat([
+        #     results.confidence_estimates['psms'],
+        #     results.decoy_confidence_estimates['psms']
+        # ], axis=0)
 
-        mokapot_columns = ['mokapot score', 'mokapot q-value', 'mokapot PEP']
+        # mokapot_columns = ['mokapot score', 'mokapot q-value', 'mokapot PEP']
 
-        df_full_information = pd.merge(
-            df_combined[mokapot_columns + psms.identifier_columns],
-            psms.psms,
-            on=psms.identifier_columns,
-            how='inner'
-        )
+        # df_full_information = pd.merge(
+        #     df_combined[mokapot_columns + psms.identifier_columns],
+        #     psms.psms,
+        #     on=psms.identifier_columns,
+        #     how='inner'
+        # )
 
-        columns_order = [col for col in df_full_information.columns if col not in mokapot_columns] + mokapot_columns
-        df_full_information = df_full_information[columns_order]
-        df_full_information.to_csv(os.path.join(self.output_dir, 'results_psms.csv'), index=False)
+        # columns_order = [col for col in df_full_information.columns if col not in mokapot_columns] + mokapot_columns
+        # df_full_information = df_full_information[columns_order]
+        # df_full_information.to_csv(os.path.join(self.output_dir, 'results_psms.csv'), index=False)
 
-        logger.debug(f'Combined shape: {df_combined.shape}')
-        logger.debug(f'Full information shape: {df_full_information.shape}')
+        # logger.debug(f'Combined shape: {df_combined.shape}')
+        # logger.debug(f'Full information shape: {df_full_information.shape}')
 
         
     def visualize_results(self, psms, results, models):
@@ -165,7 +165,7 @@ class Pipeline:
         visualize_target_decoy_features(
             psms,
             num_cols=4,
-            save_path=os.path.join(fig_dir, 'target_decoy_features.png')
+            save_path=os.path.join(fig_dir, 'target_decoy_histogram.png'),
         )
         visualize_feature_correlation(
             psms,
@@ -212,9 +212,9 @@ class Pipeline:
         generate_features(psms, self.config)
         
         # Save the initial PSMs data
-        pin_path = os.path.join(self.output_dir, 'all.pin')
+        pin_path = os.path.join(self.output_dir, f'optimhc.{self.experiment}.pin')
         psms.write_pin(pin_path)
-        psms.psms.to_csv(os.path.join(self.output_dir, 'psms.csv'), index=False)
+        # psms.psms.to_csv(os.path.join(self.output_dir, 'psms.csv'), index=False)
         
         # Run experiments
         experiment_configs = self.config.get('experiments', [])

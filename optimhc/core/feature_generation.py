@@ -39,17 +39,18 @@ def generate_features(psms, config):
         psms (PsmContainer): A container object holding PSMs and relevant data.
         config (dict): Configuration dictionary loaded from YAML.
     """
-    global_params = config['global_parameters']
-    remove_modification = global_params['remove_modification']
-    remove_pre_nxt_aa = global_params['remove_pre_nxt_aa']
-    n_processes = global_params['n_processes']
-    show_progress = global_params['show_progress']
-    output_dir = config['output_dir']
-    oxidation_tag = global_params['oxidation_tag']
-    
-    feature_generators = config['feature_generators']
+    # Original config parameter to deal with modification
+    # Now remove_modification is set to True by default
+    remove_modification = True 
+    remove_pre_nxt_aa = config['removePreNxtAA']
+    n_processes = config['numProcesses']
+    show_progress = config['showProgress']
+    output_dir = config['outputDir']
+    mod_dict = config.get('modificationMap', None)
+    if mod_dict == {}:
+        mod_dict = None
+    feature_generators = config['featureGenerator']
     allele = config['allele']
-    score = config['score']
     unique_peptides = list(set(psms.peptides))
 
     for generator_config in feature_generators:
@@ -57,16 +58,16 @@ def generate_features(psms, config):
             logger.warning("Feature generator config is not a dictionary, skipping...")
             continue
 
-        generator_type = generator_config.get('type')
+        generator_type = generator_config.get('name')
         logger.info(f"Generating features with {generator_type}...")
+        generator_params = generator_config.get('params', {})
 
         if generator_type == 'LadderPeptide':
             ladder_peptide = LadderPeptideFeatureGenerator(
                 unique_peptides,
-                min_overlap_length=generator_config.get('min_overlap_length', 8),
-                min_entropy=generator_config.get('min_entropy', 0),
-                min_length=generator_config.get('min_length', 8),
-                max_length=generator_config.get('max_length', 25),
+                min_overlap_length=generator_params.get('minOverlapLength', 8),
+                min_length=generator_params.get('minLength', 8),
+                max_length=generator_params.get('maxLength', 25),
                 remove_pre_nxt_aa=remove_pre_nxt_aa,
                 remove_modification=remove_modification
             )
@@ -85,7 +86,7 @@ def generate_features(psms, config):
                 feature_key=ladder_peptide.id_column,
                 source='LadderPeptide'
             )
-
+            score = generator_params.get('ladderScore', None)
             if score:
                 assign_brother_aggregated_feature(psms, feature_columns=score, ladder_source='LadderPeptide')
 
@@ -102,7 +103,7 @@ def generate_features(psms, config):
             pwm_generator = PWMFeatureGenerator(
                 unique_peptides,
                 alleles=allele,
-                mhc_class=generator_config.get('mhc_class', 'I'),
+                mhc_class=generator_params.get('class', 'I'),
                 remove_modification=remove_modification,
                 remove_pre_nxt_aa=remove_pre_nxt_aa
             )
@@ -133,11 +134,11 @@ def generate_features(psms, config):
             netmhcpan_generator = NetMHCpanFeatureGenerator(
                 unique_peptides,
                 alleles=allele,
-                mode=generator_config.get('mode', 'best'),
+                mode=generator_params.get('mode', 'best'),
                 remove_pre_nxt_aa=remove_pre_nxt_aa,
                 remove_modification=remove_modification,
-                n_processes=generator_config.get('n_processes', n_processes),
-                show_progress=generator_config.get('show_progress', show_progress)
+                n_processes=n_processes,
+                show_progress=show_progress
             )
             netmhcpan_features = netmhcpan_generator.generate_features()
             psms.add_features(
@@ -151,11 +152,11 @@ def generate_features(psms, config):
             netmhciipan_generator = NetMHCIIpanFeatureGenerator(
                 unique_peptides,
                 alleles=allele,
-                mode=generator_config.get('mode', 'best'),
+                mode=generator_params.get('mode', 'best'),
                 remove_pre_nxt_aa=remove_pre_nxt_aa,
                 remove_modification=remove_modification,
-                n_processes=generator_config.get('n_processes', n_processes),
-                show_progress=generator_config.get('show_progress', show_progress)
+                n_processes=n_processes,
+                show_progress=show_progress
             )
             netmhciipan_features = netmhciipan_generator.generate_features()
             psms.add_features(
@@ -166,17 +167,13 @@ def generate_features(psms, config):
             )
 
         elif generator_type == 'DeepLC':
-            if oxidation_tag is not None:
-                mod_dict = {
-                    oxidation_tag: 'Oxidation'
-                }
             deeplc_generator = DeepLCFeatureGenerator(
                 psms,
-                calibration_criteria_column=generator_config.get('calibration_criteria_column', 'spscore'),
-                lower_score_is_better=generator_config.get('lower_score_is_better', False),
-                calibration_set_size=generator_config.get('calibration_set_size', 0.1),
-                processes=generator_config.get('processes', n_processes),
-                model_path=generator_config.get('model_path', None),
+                calibration_criteria_column=generator_params.get('calibrationCriteria'),
+                lower_score_is_better=generator_params.get('lowerIsBetter'),
+                calibration_set_size=generator_params.get('calibrationSize', 0.1),
+                processes=n_processes,
+                model_path=generator_params.get('model_path', None),
                 remove_pre_nxt_aa=remove_pre_nxt_aa,
                 mod_dict=mod_dict
             )
@@ -186,12 +183,12 @@ def generate_features(psms, config):
         elif generator_type == 'SpectraSimilarity':
 
             # Match PSMs with the spectra
-            mzML_dir = generator_config.get('mzML_dir', None)
+            mzML_dir = generator_params.get('mzmlDir', None)
             if mzML_dir is None:
                 logger.error("mzML_dir is not provided for SpectraSimilarity feature generator.")
                 continue 
 
-            pattern = generator_config.get('spectrum_id_pattern', None)
+            pattern = generator_params.get('spectrumIdPattern', None)
             mz_file_names = []
             spectrum_ids = psms.spectrum_ids
 
@@ -229,20 +226,30 @@ def generate_features(psms, config):
                 if not os.path.exists(mz_file_path):
                     logger.error(f"mzML file not found: {mz_file_path}")
                     continue
-
+            
+            model_type = generator_params.get('model', None)
+            if model_type is None:
+                logger.error("Model type is not provided for SpectraSimilarity feature generator.")
+                raise ValueError("Model type is required for SpectraSimilarity feature generator.")
+            
+            collision_energy = generator_params.get('collisionEnergy', None)
+            instrument = generator_params.get('instrument', None)
+            fragmentation_type = generator_params.get('fragmentationType', None) 
             spectra_similarity_generator = SpectraSimilarityFeatureGenerator(
                 spectrum_ids=psms.spectrum_ids,
                 peptides=psms.peptides,
                 charges=psms.charges,  
                 scan_ids=psms.scan_ids,
                 mz_file_paths=mz_file_paths,
-                model_type=generator_config.get('model', 'CID'),
-                collision_energies=[generator_config.get('collision_energy', None)] * len(psms.scan_ids),
-                remove_modification=remove_modification,
+                model_type=generator_params.get('model'),
+                collision_energies=[collision_energy] * len(psms.peptides) if collision_energy else None,
+                instruments=[instrument] * len(psms.peptides) if instrument else None,
+                fragmentation_types=[fragmentation_type] * len(psms.peptides) if fragmentation_type else None,
                 remove_pre_nxt_aa=remove_pre_nxt_aa,
-                url=generator_config.get('url', 'koina.wilhelmlab.org:443'),
-                top_n=generator_config.get('top_n', 36),
-                tolerance_ppm=generator_config.get('tolerance_ppm', 20),
+                mod_dict=mod_dict,
+                url=generator_params.get('url'),
+                top_n=generator_params.get('numTopPeaks', 36),
+                tolerance_ppm=generator_params.get('tolerance', 20),
             )
 
             spectra_similarity_features = spectra_similarity_generator.generate_features()
@@ -254,4 +261,4 @@ def generate_features(psms, config):
             )
 
         else:
-            logger.warning(f"Unknown feature generator type: {generator_type}")
+            logger.warning(f"Unknown feature generator: {generator_type}")

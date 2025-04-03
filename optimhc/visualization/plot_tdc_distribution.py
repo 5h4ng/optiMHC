@@ -39,12 +39,13 @@ def visualize_target_decoy_features(psms: PsmContainer, num_cols=5, save_path=No
             multiple="stack",
             fill=True,
             alpha=0.3,
+            stat='percent', 
             kde=True,
             linewidth=0
         )
         ax.set_title(feature)
         ax.set_xlabel("")
-        ax.set_ylabel("")
+        ax.set_ylabel("Percent")
 
     for j in range(i + 1, len(axes)):
         fig.delaxes(axes[j])

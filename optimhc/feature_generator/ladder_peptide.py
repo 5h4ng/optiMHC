@@ -86,17 +86,14 @@ class LadderPeptideFeatureGenerator(BaseFeatureGenerator):
         peptides: List[str],
         min_overlap_length: int = 6,
         min_length: int = 7,
-        max_length: int = 20,
-        min_entropy: float = 2.5,
+        max_length: int = 60,
+        min_entropy: float = 0,
         fill_missing: str = 'median',  # 'median' or 'zero'
-        remove_pre_nxt_aa: bool = True,
+        remove_pre_nxt_aa: bool = False,
         remove_modification: bool = True,
         *args,
         **kwargs
     ):
-        """
-        Initialize the LadderPeptideFeatureGenerator.
-        """
         self.original_peptides = peptides
         self.min_overlap_length = min_overlap_length
         self.min_length = min_length

@@ -1,195 +1,162 @@
-## **Usage**
+# README
 
-### **Command-line Execution**
+## Usage
 
-Run the pipeline with a YAML configuration file:
+### Command-line Execution
+
+Run the pipeline by providing a YAML configuration file:
 
 ```bash
-python run_pipeline.py /path/to/config.yaml
+optimhc --mode pipeline /path/to/config.yaml
 ```
 
 Run in experiment mode to test multiple feature combinations:
 
 ```bash
-python run_pipeline.py /path/to/config.yaml --mode experiment
-```
-
-### **Command-line Help**
-
-To see available options:
-
-```bash
-python run.py -h
-```
-
-Output:
-
-```
-usage: run_pipeline.py [-h] config
-
-Run the analysis pipeline with the specified YAML configuration.
-
-positional arguments:
-  config      Path to the YAML configuration file.
-
-optional arguments:
-  -h, --help  show this help message and exit
+optimhc --mode pipeline /path/to/config.yaml --experiment
 ```
 
 ---
 
-## **Configuration**
+## YAML Configuration File
 
-The pipeline is configured via a YAML file. Below is an example configuration:
+The pipeline is configured using a YAML file. This file defines the input settings, the list of feature generators, rescore parameters, and (optionally) experiment configurations. Below you will find a table summarizing the main configuration parameters along with examples and descriptions.
+
+### Configuration Parameters
+
+| Parameter           | Type               | Example                                                          | Description                                                             |
+|---------------------|--------------------|------------------------------------------------------------------|-------------------------------------------------------------------------|
+| `experimentName`    | String             | `classI_example`                                                 | Name of the experiment and output subdirectory name.                  |
+| `inputType`         | String             | `pepxml`                                                         | Type of input file. Supported values: `pepxml`, `pin`.                  |
+| `inputFile`         | String or List     | `./data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml`        | Path(s) to the input PSM file(s).                                       |
+| `decoyPrefix`       | String             | `DECOY_`                                                         | Prefix used to identify decoy sequences.                              |
+| `outputDir`         | String             | `./results`                                                      | Base directory where output files, logs and figures are stored.         |
+| `visualization`     | Boolean            | `True`                                                           | Enable or disable generation of visualization plots.                  |
+| `removePreNxtAA`    | Boolean            | `False`                                                          | Remove pre/post neighboring amino acids in sequence processing.         |
+| `numProcesses`      | Integer            | `32`                                                             | Number of parallel processes to use.                               |
+| `showProgress`      | Boolean            | `True`                                                           | Show progress information during execution.                           |
+| `modificationMap`   | Dictionary         | `{ '147.035385': 'UNIMOD:35' }`                                    | Maps modification masses to their 'UNIMOD' identifiers. See https://www.unimod.org/ for details           |
+| `allele`            | List               | `[HLA-A*02:02]`                                                  | List of alleles for which predictions will be computed.                 |
+| `featureGenerator`  | List of Dictionaries | See table below                                                  | List of feature generator configurations (each with a `name` and optional `params`). |
+| `rescore`           | Dictionary         | See table below                                                 | Rescore settings including FDR threshold, model and number of jobs.     |
+
+---
+
+### Feature Generator Configurations
+
+Each feature generator is specified with its `name` and an optional `params` subsection. Some common generators include:
+
+| Generator Name      | Example Parameters                                                                                                           | Description                                                                              |
+|---------------------|------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
+| `Basic`             | N/A                                                                                                                          | Generates basic sequence features.                                                       |
+| `SpectraSimilarity` | `mzmlDir: ./data`<br>`spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+`<br>`model: AlphaPeptDeep_ms2_generic`<br>`collisionEnergy: 28`<br>`instrument: LUMOS`<br>`tolerance: 20`<br>`numTopPeaks: 36`<br>`url: koina.wilhelmlab.org:443` | Computes features based on the similarity between experimental spectra and predicted spectra. See more options on https://koina.proteomicsdb.org/ |
+| `DeepLC`            | `calibrationCriteria: expect`<br>`lowerIsBetter: True`<br>`calibrationSize: 0.1`                                             | Creates retention time predictions by calibrating using DeepLC.                           |
+| `LadderPeptide`     | `minOverlapLength: 7`<br>`minLength: 7`<br>`maxLength: 20`<br>`ladderScore: expect`                                           | Generates ladder peptide features for grouping similar peptides.                         |
+| `PWM`               | `class: I`                                                                                                                   | Generates position weight matrix features for MHC class I and class II peptides.                        |
+| `MHCflurry`         | N/A                                                                                                                          | Predicts class I binding affinities using the MHCflurry model.                                     |
+| `NetMHCpan`         | N/A                                                                                                                          | Predicts class I peptide-MHC binding affinity using NetMHCpan.                                     |
+| `NetMHCIIpnan` | N/A                                                                                                                          | Predicts class II peptide-MHC binding affinity using NetMHCIIpan.                                   |
+---
+
+### Rescore Settings
+
+Rescore parameters control how the rescoring step is executed and include:
+
+| Parameter  | Type    | Example     | Description                                                                |
+|------------|---------|-------------|----------------------------------------------------------------------------|
+| `testFDR`  | Float   | `0.01`      | The false-discovery rate threshold at which to evaluate the learned models.       |
+| `model`    | String  | `Percolator`| Model to use for rescoring (valid options include `Percolator`, `XGBoost`, or `RandomForest`). |
+| `numJobs`  | Integer | `4`         |The number of parallel jobs to run. This value is passed to Scikit-learn’s n_jobs parameter to control parallelism for model training or scoring. Set to -1 to use all available CPU cores.                   |
+
+---
+
+### Experiment Mode (Optional)
+
+When running in experiment mode, the YAML file can include an `experiments` section that defines multiple experiments with different feature combinations and models. Each experiment entry uses the following parameters:
+
+| Parameter | Type   | Example                                                                                       | Description                                                              |
+|-----------|--------|-----------------------------------------------------------------------------------------------|--------------------------------------------------------------------------|
+| `name`    | String | `"Baseline"`                                                                                  | Name of the experiment; also used to create a dedicated output directory. |
+| `source`  | List   | `["Original", "Basic", "DeepLC"]`                                                             | List of feature source names to include in the experiment.               |
+| `model`   | String | `"Percolator"` or `"XGBoost"`                                                                 | Rescoring model to use for the experiment.                                |
+
+---
+
+### Example YAML Configuration
+
+Below is an example YAML configuration for class I based on the latest pipeline version:
 
 ```yaml
-# Input settings
-input_type: pepxml
-input_files:
-  - /path/to/file1.pep.xml
-  - /path/to/file2.pep.xml
+experimentName: classI_example
+inputType: pepxml
+inputFile:
+  - ./data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml
+decoyPrefix: DECOY_
+outputDir: ./results
+visualization: True
+removePreNxtAA: False
+numProcesses: 32
+showProgress: True
+modificationMap:
+  '147.035385': 'UNIMOD:35'
 
-# Output settings
-output_dir: /path/to/output
-allele: [HLA-A*02:06]
-test_fdr: 0.01
-visualization: true
-
-# Global parameters
-global_parameters:
-  remove_modification: true
-  remove_pre_nxt_aa: false
-  n_processes: 32
-  show_progress: true
+# Allele settings
+allele:
+  - HLA-A*02:02
 
 # Feature generator configurations
-feature_generators:
-  - type: LadderPeptide
-    min_overlap_length: 8
-    min_entropy: 0
-  - type: Basic
-  - type: PWM
-    mhc_class: I
-  - type: MHCflurry
-  - type: NetMHCpan
-    mode: all
-  - type: NetMHCIIpan
-    mode: best
-  - type: DeepLC
-    calibration_criteria_column: spscore
-    lower_score_is_better: false
-    calibration_set_size: 0.1
-  - type: SpectraSimilarity
-    mzML_dir: /path/to/mzML/files
-    spectrum_id_pattern: (.+?)\.\d+\.\d+\.\d+
-    fragmentation_method: CID
-    tolerance_ppm: 20
+featureGenerator:
+  - name: Basic
+  - name: SpectraSimilarity
+    params:
+      mzmlDir: ./data
+      spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+
+      model: AlphaPeptDeep_ms2_generic
+      collisionEnergy: 28
+      instrument: LUMOS
+      tolerance: 20  
+      numTopPeaks: 36
+      url: koina.wilhelmlab.org:443
+  - name: DeepLC
+    params:
+      calibrationCriteria: expect
+      lowerIsBetter: True
+      calibrationSize: 0.1
+  - name: LadderPeptide
+    params:
+      minOverlapLength: 7
+      minLength: 7
+      maxLength: 20
+      ladderScore: expect 
+  - name: PWM
+    params:
+      class: I
+  - name: MHCflurry
+  - name: NetMHCpan
 
 # Rescore settings
 rescore:
-  test_fdr: 0.01
-  model: percolator
-  n_jobs: 4
-```
+  testFDR: 0.01
+  model: Percolator
+  numJobs: 4
 
-## **Experiment Mode**
-
-Experiment mode allows you to run multiple experiments with different feature combinations in a single execution. Each experiment uses a different set of features from the generated feature set.
-
-### **Experiment Configuration**
-
-To configure experiment mode, add an `experiments` section to your YAML file:
-
-```yaml
-# Standard configuration as above
-# ...
-
-# Experiments configuration
+# Optional: Experiment Mode configuration
 experiments:
   - name: "Baseline"
     source: ["Original"]
-    model: "percolator"
-  
-  - name: "Basic+RT"
-    source: ["Original", "Basic", "DeepLC"]
-    model: "percolator"
-  
+    model: "Percolator"
   - name: "Complete"
     source: ["Original", "Basic", "DeepLC", "MHCflurry", "NetMHCpan", "PWM", "LadderPeptide"]
-    model: "xgboost"
-```
-
-### **Experiment Parameters**
-
-Each experiment in the `experiments` array can have the following parameters:
-
-- `name`: Name of the experiment (used for output directory)
-- `source`: List of feature sources to use in this experiment
-- `model`: ML model to use for rescoring ("percolator", "xgboost", or "random_forest")
-
-### **Example Full Experiment Configuration**
-
-```yaml
-# Input settings
-input_type: pepxml
-input_files:
-  - /path/to/file1.pep.xml
-  - /path/to/file2.pep.xml
-
-# Output settings
-output_dir: /path/to/experiment_results
-allele: [HLA-A*02:06]
-visualization: true
-score: spscore
-
-# Global parameters
-global_parameters:
-  remove_modification: true
-  remove_pre_nxt_aa: false
-  n_processes: 32
-  show_progress: true
-
-# Feature generator configurations
-feature_generators:
-  - type: Basic
-  - type: DeepLC
-    calibration_criteria_column: spscore
-    lower_score_is_better: false
-    calibration_set_size: 0.1
-  - type: MHCflurry
-  - type: NetMHCpan
-    mode: all
-  - type: LadderPeptide
-    min_overlap_length: 7
-    min_entropy: 0
-  - type: PWM
-    mhc_class: I
-
-# Experiment definitions
-experiments:
-  - name: Baseline
-    source: ["Original"]
-    model: percolator
-  
-  - name: Basic+RT
-    source: ["Original", "Basic", "DeepLC"]
-    model: percolator
-  
-  - name: Basic+RT+Affinity
-    source: ["Original", "Basic", "DeepLC", "MHCflurry", "NetMHCpan"]
-    model: percolator
-  
-  - name: Basic+RT+Affinity+PWM
-    source: ["Original", "Basic", "DeepLC", "MHCflurry", "NetMHCpan", "PWM"]
-    model: percolator
-  
-  - name: Basic+RT+Affinity+Ladder
-    source: ["Original", "Basic", "DeepLC", "MHCflurry", "NetMHCpan", "LadderPeptide", "LadderGroupFeatures"]
-    model: percolator
-  
-  - name: Full_Model
-    source: ["Original", "Basic", "DeepLC", "MHCflurry", "NetMHCpan", "PWM", "LadderPeptide", "LadderGroupFeatures"]
-    model: xgboost
+    model: "XGBoost"
 ```
 
 ---
+
+## Try It Yourself
+
+
+```bash
+cd ./examples
+optimch --mode pipeline classI_example.yaml
+```
+

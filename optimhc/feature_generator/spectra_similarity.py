@@ -47,10 +47,12 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         charges: List[int],
         scan_ids: List[int],
         mz_file_paths: List[str],
-        model_type: str = "HCD",
+        model_type: str,
         collision_energies: List[float] = None,
+        instruments: List[str] = None,
+        fragmentation_types: List[str] = None,
         remove_pre_nxt_aa: bool = False,
-        remove_modification: bool = True,
+        mod_dict: Optional[Dict[str, str]] = None,
         url: str = "koina.wilhelmlab.org:443",
         top_n: int = 36,
         tolerance_ppm: float = 20
@@ -62,8 +64,10 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self.mz_file_paths = mz_file_paths
         self.model_type = model_type
         self.collision_energies = collision_energies
+        self.instruments = instruments
+        self.fragmentation_types = fragmentation_types
         self.remove_pre_nxt_aa = remove_pre_nxt_aa
-        self.remove_modification = remove_modification
+        self.mod_dict = mod_dict
         self.url = url
         self.top_n = top_n
         self.tolerance_ppm = tolerance_ppm
@@ -71,19 +75,8 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self._raw_predictions = None
 
         
-        if self.model_type == "HCD" and self.collision_energies is None:
-            raise ValueError("collision_energies must be provided when model_type is HCD")
-
-        # TODO: Support more models in the future
-        if self.model_type == "HCD":
-            self.model_name = "Prosit_2020_intensity_HCD"
-        elif self.model_type == "CID":
-            self.model_name = "Prosit_2020_intensity_CID"
-        else:
-            raise ValueError(f"Unsupported model_type: {self.model_type}, please use 'HCD' or 'CID'")
-        
         logger.info(f"Initializing SpectraSimilarityFeatureGenerator with {len(peptides)} PSMs")
-        logger.info(f"Using model: {self.model_name}")
+        logger.info(f"Using model: {self.model_type}")
         
         self.df = pd.DataFrame({
             'spectrum_id': self.spectrum_ids,
@@ -92,14 +85,8 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
             'charge': self.charges,
             'mz_file_path': self.mz_file_paths
         })
-        
-        # Prosit HCD model requires collision energies
-        if self.collision_energies is not None:
-            if isinstance(self.collision_energies, (int, float)):
-                self.collision_energies = [self.collision_energies] * len(self.df)
-            self.df['collision_energy'] = self.collision_energies
 
-        self.df['clean_peptide'] = self.df['peptide'].apply(self._preprocess_peptide)
+        self.df['processed_peptide'] = self.df['peptide'].apply(self._preprocess_peptide)
         logger.info(f"Recevied {len(self.df)} PSMs for spectral similarity feature generation")
 
 
@@ -147,17 +134,17 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         if self.remove_pre_nxt_aa:
             processed_peptide = utils.remove_pre_and_nxt_aa(processed_peptide)
             
-        if self.remove_modification:
+        if self.mod_dict is None:
             processed_peptide = utils.remove_modifications(processed_peptide)
-        
-        # # If peptide length > 30, truncate to 30
-        # Prosit has a maximum length of 30 amino acids
-        if len(processed_peptide) > 30:
-             logger.warning(f"Peptide sequence is longer than 30 amino acids: {processed_peptide}. Truncating to 30.")
-             processed_peptide = processed_peptide[:30]
+        else:
+            for mod, replacement in self.mod_dict.items():
+                processed_peptide = processed_peptide.replace(mod, replacement)
 
-        # Replace non-standard amino acid 'U' with 'C'
-        if 'U' in processed_peptide:
+        # Replace non-standard amino acid 'U' with 'C'.
+        # This is nosense when it comes to spectral prediction.
+        # But we need to keep it for compatibility with Koina.
+        # In the future, this should be prohibited at the input level.
+        if 'U' in utils.remove_modifications(processed_peptide):
             logger.warning(f"Peptide sequence contains non-standard amino acid 'U': {processed_peptide}. Replacing with 'C'.")
             # Replace 'U' with 'C'
             processed_peptide = processed_peptide.replace('U', 'C')
@@ -200,33 +187,62 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
             return pd.DataFrame()
 
 
-    def _predict_theoretical_spectra(self, clean_peptides: List[str], charges: List[int]) -> pd.DataFrame:
+    def _predict_theoretical_spectra(self, processed_peptides: List[str], charges: List[int]) -> pd.DataFrame:
         """
         Use Koina to predict theoretical spectra
         
         Parameters:
-            clean_peptides (List[str]): List of preprocessed peptide sequences
+            processed_peptides (List[str]): List of preprocessed peptide sequences
             charges (List[int]): List of charge states
             
         Returns:
             pd.DataFrame: DataFrame containing predicted spectral data
         """
-        logger.info(f"Predicting theoretical spectra using {self.model_name}...")
+        logger.info(f"Predicting theoretical spectra using {self.model_type}...")
         
         inputs = pd.DataFrame()
-        inputs['peptide_sequences'] = np.array(clean_peptides)
+        inputs['peptide_sequences'] = np.array(processed_peptides)
         inputs['precursor_charges'] = np.array(charges)
         
-        if self.model_type == "HCD":
+        if self.collision_energies is not None:
             inputs['collision_energies'] = np.array(self.collision_energies)
         
-        model = Koina(self.model_name, self.url)
+        if self.instruments is not None:
+            inputs['instrument_types'] = np.array(self.instruments)
 
-        # check whether there are amino acid 'U' in the peptide sequences,and report the index
-        if any('U' in peptide for peptide in clean_peptides):
-            u_indices = [i for i, peptide in enumerate(clean_peptides) if 'U' in peptide]
-            logger.warning(f"Peptide sequences contain non-standard amino acid 'U' at indices: {u_indices}")
-        predictions = model.predict(inputs)
+        if self.fragmentation_types is not None:
+            inputs['fragmentation_types'] = np.array(self.fragmentation_types)
+
+        model = Koina(self.model_type, self.url)
+        
+        try:
+            predictions = model.predict(inputs)
+        except Exception as e:
+            logger.error(f"Error during Koina prediction: {e}")
+            logger.error("Koina prediction failed. Please check:")
+            logger.error("- Input parameters compatibility")
+            logger.error("- Supported modifications")
+            logger.error("- Peptide length limits")
+            logger.error(f"Details at: https://koina.proteomicsdb.org/")
+
+            # https://github.com/wilhelm-lab/koina/issues/174
+            if self.model_type == "AlphaPeptDeep_ms2_generic":
+                # Spilt inputs into batches size 1000, and concatenate the results
+                logger.info('https://github.com/wilhelm-lab/koina/issues/174')
+                logger.info("Try to split inputs into batches of size 1000 for prediction...")
+                batch_size = 1000
+                batches = [inputs[i:i + batch_size] for i in range(0, len(inputs), batch_size)]
+                predictions = []
+                for batch in batches:
+                    try:
+                        batch_predictions = model.predict(batch)
+                        predictions.append(batch_predictions)
+                    except Exception as e:
+                        logger.error(f"Error during Koina prediction for batch: {e}")
+                        raise
+                predictions = pd.concat(predictions, ignore_index=True)
+            else:
+                raise 
         
         # Save the raw prediction results
         self._raw_predictions = predictions.copy()
@@ -235,7 +251,7 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         pred_df = predictions.copy()
         pred_df.rename(
             columns={
-                'peptide_sequences': 'clean_peptide',
+                'peptide_sequences': 'processed_peptide',
                 'precursor_charges': 'charge',
                 'intensities': 'pred_intensity',
                 'mz': 'pred_mz'
@@ -244,7 +260,7 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         )
         
         # Group by peptide and charge, convert predicted mz and intensity to lists
-        grouped_df = pred_df.groupby(['clean_peptide', 'charge']).agg({
+        grouped_df = pred_df.groupby(['processed_peptide', 'charge']).agg({
             'pred_intensity': list,
             'pred_mz': list,
             'annotation': list
@@ -745,6 +761,11 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
             pd.DataFrame: DataFrame containing generated features
         """
         psm_df = self.df.copy()
+        pred_spectra_df = self._predict_theoretical_spectra(
+            processed_peptides=psm_df['processed_peptide'].tolist(),
+            charges=psm_df['charge'].tolist()
+        )
+
         exp_spectra_df = self._extract_experimental_spectra()
         
         if not exp_spectra_df.empty:
@@ -756,22 +777,10 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         if len(psm_df) != len(self.df):
             logger.warning("Some PSMs were not found in experimental spectral data")
         
-        # For HCD model, ensure collision_energies column exists and is correct
-        if self.model_type == "HCD" and 'collision_energy' not in psm_df.columns:
-            if isinstance(self.collision_energies, (int, float)):
-                psm_df['collision_energy'] = [self.collision_energies] * len(psm_df)
-            else:
-                psm_df['collision_energy'] = self.collision_energies[:len(psm_df)]
-        
-        pred_spectra_df = self._predict_theoretical_spectra(
-            clean_peptides=psm_df['clean_peptide'].tolist(),
-            charges=psm_df['charge'].tolist()
-        )
-        
-        psm_df = pd.merge(psm_df, pred_spectra_df, on=['clean_peptide', 'charge'], how='inner')
+        psm_df = pd.merge(psm_df, pred_spectra_df, on=['processed_peptide', 'charge'], how='inner')
         results = []
 
-        logger.info("Matching experimental and predicted spectra...")
+        logger.info("Matching experimental and predicted spectra... This may take a while.")
         for _, row in psm_df.iterrows():
             exp_mz = row['mz']
             exp_intensity = row['intensity']
@@ -814,7 +823,7 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         psm_df = pd.concat([psm_df.reset_index(drop=True), results_df.reset_index(drop=True)], axis=1)
         
         result_columns = [
-            'mz_file_path', 'spectrum_id', 'scan', 'peptide', 'charge', 'clean_peptide',
+            'mz_file_path', 'spectrum_id', 'scan', 'peptide', 'charge', 'processed_peptide',
             'mz', 'intensity', 'pred_mz', 'pred_intensity', 'annotation',
             'exp_mz_sorted', 'exp_intensity_sorted', 'pred_mz_sorted', 'pred_intensity_sorted',
             'pred_annotation_sorted' if 'pred_annotation_sorted' in psm_df.columns else None,

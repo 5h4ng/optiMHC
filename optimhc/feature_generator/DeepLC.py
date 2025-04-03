@@ -48,6 +48,13 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
             than the number of available PSMs, all PSMs will be used. (default: 0.15)
         processes: {int, None}
             Number of processes to use in DeepLC. Defaults to 1.
+        model_path: str
+            Path to the DeepLC model. If None, the default model will be used.
+        remove_pre_nxt_aa: bool
+            Whether to remove the first and last amino acids from the peptide sequence.
+            Default: True
+        mod_dict: dict
+            Dictionary of modifications to be used for DeepLC. If None, no modifications will be used.
         *args: list
             Additional positional arguments are passed to DeepLC.
         kwargs: dict
