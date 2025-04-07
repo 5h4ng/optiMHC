@@ -54,20 +54,20 @@ def read_pin(
     # MSFragger: P2PI20160713_pilling_C1RA2_BB72_P1.3104.3104.2_1
 
     def parse_specid(specid: str) -> Tuple[str, int]:
-        try:
+        if '_' in specid:
             parts = specid.rsplit('_', 1)
             if len(parts) != 2:
                 raise ValueError(f"SpecId format invalid: {specid}")
             unique_id = parts[0]
             hit_rank = int(parts[1])
             return unique_id, hit_rank
-        except Exception as e:
-            logger.error(f"Error parsing specid '{specid}': {e}")
-            raise ValueError(f"SpecId format invalid: {specid}") from e
+        else:
+            return specid, 1
+
     
     hit_rank = 'rank'
     if 'rank' in [c.lower() for c in pin_df.columns]: 
-        pin_df[specid], _ = zip(*pin_df[specid].apply(parse_specid))
+        pass
     else:
         pin_df[specid], pin_df['rank'] = zip(*pin_df[specid].apply(parse_specid))
 
@@ -87,7 +87,7 @@ def read_pin(
     pin_df[specid] = pin_df[specid].astype(str)
     pin_df[peptide] = pin_df[peptide].astype(str)
     pin_df[protein] = pin_df[protein].astype(str)
-    pin_df[hit_rank] = pin_df[hit_rank].astype(int)
+    pin_df[hit_rank] = pin_df[hit_rank].astype(float).astype(int)
     if retention_time_column:
         pin_df[retention_time_column] = pin_df[retention_time_column].astype(float)
     for col in feature_columns:

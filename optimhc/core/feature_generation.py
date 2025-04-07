@@ -77,7 +77,8 @@ def generate_features(psms, config):
                 )
                 score = generator_params.get('overlappingScore', None)
                 if score:
-                    assign_brother_aggregated_feature(psms, feature_columns=score, overlapping_source='OverlappingPeptide')
+                    assign_brother_aggregated_feature(psms, feature_columns=score, overlapping_source='OverlappingPeptide',
+                                                       source_name='ContigFeatures')
 
             elif generator_type == 'Basic':
                 basic_generator = BasicFeatureGenerator(

@@ -177,15 +177,16 @@ class Pipeline:
             rescoring_features,
             save_path=os.path.join(fig_dir, 'feature_importance.png')
         )
+        visualize_feature_correlation(
+            psms,
+            save_path=os.path.join(fig_dir, 'feature_correlation.png'),
+        )
         visualize_target_decoy_features(
             psms,
             num_cols=4,
             save_path=os.path.join(fig_dir, 'target_decoy_histogram.png'),
         )
-        visualize_feature_correlation(
-            psms,
-            save_path=os.path.join(fig_dir, 'feature_correlation.png'),
-        )
+
     
     def _run_single_experiment(self, psms, exp_config, exp_name, exp_dir):
         """
@@ -227,9 +228,6 @@ class Pipeline:
                 output_dir=exp_dir, 
                 file_root=exp_name
             )
-            
-            pin_path = os.path.join(exp_dir, f'{exp_name}.optimhc.pin')
-            psms.write_pin(pin_path, source=source)
             
             self.visualize_results(
                 psms, 

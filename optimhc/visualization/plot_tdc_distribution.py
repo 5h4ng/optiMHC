@@ -18,6 +18,10 @@ def visualize_target_decoy_features(psms: PsmContainer, num_cols=5, save_path=No
         **kwargs: Additional plotting parameters such as `figsize` and `dpi`, etc.
     """
     rescoring_features = [item for sublist in psms.rescoring_features.values() for item in sublist if item != psms.hit_rank_column]
+
+    # drop features that only have one value
+    rescoring_features = [feature for feature in rescoring_features if len(psms.psms[feature].unique()) > 1]
+
     num_features = len(rescoring_features)
     num_rows = (num_features + num_cols - 1) // num_cols
     
@@ -28,36 +32,39 @@ def visualize_target_decoy_features(psms: PsmContainer, num_cols=5, save_path=No
     axes = axes.flatten()
     
     psms_top_hits = psms.psms[psms.psms[psms.hit_rank_column] == 1].copy()
-    # report the the number of true hits and decoys
     num_true_hits = len(psms_top_hits[psms_top_hits[psms.label_column] == True])
     num_decoys = len(psms_top_hits[psms_top_hits[psms.label_column] == False])
     logger.debug(f"Number of true hits: {num_true_hits}")
     logger.debug(f"Number of decoys: {num_decoys}")
     psms_top_hits[psms.label_column] = psms_top_hits[psms.label_column].map({True: 'Target', False: 'Decoy'})
-    
 
     for i, feature in enumerate(rescoring_features):
-        ax = axes[i]
-        sns.histplot(
-            data=psms_top_hits,
-            x=feature,
-            hue=psms.label_column,
-            ax=ax,
-            bins='auto',  
-            common_bins=True,
-            multiple='dodge',
-            fill=True,
-            alpha=0.3,
-            stat='frequency', 
-            kde=True,
-            linewidth=0
-        )
-        ax.set_title(feature)
-        ax.set_xlabel("")
-        ax.set_ylabel("")
+        try:
+            ax = axes[i]
+            sns.histplot(
+                data=psms_top_hits,
+                x=feature,
+                hue=psms.label_column,
+                ax=ax,
+                bins='auto',  
+                common_bins=True,
+                multiple='dodge',
+                fill=True,
+                alpha=0.3,
+                stat='frequency', 
+                kde=True,
+                linewidth=0
+            )
+            ax.set_title(feature)
+            ax.set_xlabel("")
+            ax.set_ylabel("")
 
+        except Exception as e:
+            logger.error(f"Error plotting feature {feature}: {e}")
+            ax.set_visible(False)
+            
     for j in range(i + 1, len(axes)):
-        fig.delaxes(axes[j])
+            fig.delaxes(axes[j])
 
     save_or_show_plot(save_path, logger)
 
