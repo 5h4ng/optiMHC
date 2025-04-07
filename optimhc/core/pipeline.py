@@ -14,7 +14,7 @@ from optimhc.visualization import (
 )
 from optimhc.core.config import load_config
 from optimhc.core.logging_helper import setup_loggers
-from optimhc.core.feature_generation import import_generators, generate_features
+from optimhc.core.feature_generation import generate_features
 
 logger = logging.getLogger(__name__)
 
@@ -31,9 +31,15 @@ class Pipeline:
         """
         self.config = load_config(config_path)
         self.experiment = self.config.get('experimentName', 'optimhc_experiment') 
-        self.output_dir = os.path.join(self.config['output_dir'], self.experiment)
+        self.output_dir = os.path.join(self.config['outputDir'], self.experiment)
         os.makedirs(self.output_dir, exist_ok=True)
         setup_loggers(os.path.join(self.output_dir, 'log'))
+        
+        self.visualization_enabled = self.config.get('visualization', True)
+        self.save_models = self.config.get('saveModels', True)
+        self.test_fdr = self.config.get('rescore', {}).get('testFDR', 0.01)
+        self.model_type = self.config.get('rescore', {}).get('model', 'Percolator')
+        self.n_jobs = self.config.get('rescore', {}).get('numJobs', 1)
 
         
     def read_input(self):
@@ -58,8 +64,23 @@ class Pipeline:
             return psms
         except Exception as e:
             logger.error(f"Failed to read input files: {e}")
-            raise
+            raise 
 
+
+    def _generate_features(self, psms):
+        """
+        Generate features for PSMs.
+        
+        Parameters:
+            psms (PsmContainer): The PSM container object.
+            
+        Returns:
+            PsmContainer: The PSM container with generated features.
+        """
+        # TODO: Add dynamic import of feature generators
+        generate_features(psms, self.config)
+        return psms
+    
             
     def rescore(self, psms, model_type=None, n_jobs=None, test_fdr=None, rescoring_features=None):
         """
@@ -75,12 +96,10 @@ class Pipeline:
         Returns:
             tuple: (results, models) - The rescoring results and trained models.
         """
-        rescore_config = self.config['rescore']
-        
         # Use provided parameters or fall back to config values
-        test_fdr = test_fdr if test_fdr is not None else rescore_config['testFDR']
-        model_type = model_type if model_type is not None else rescore_config['model']
-        n_jobs = n_jobs if n_jobs is not None else rescore_config['numJobs']
+        test_fdr = test_fdr if test_fdr is not None else self.test_fdr
+        model_type = model_type if model_type is not None else self.model_type
+        n_jobs = n_jobs if n_jobs is not None else self.n_jobs
         
         if model_type == 'XGBoost':
             model = XGBoostPercolatorModel(n_jobs=n_jobs)
@@ -99,42 +118,31 @@ class Pipeline:
         return results, models
     
         
-    def save_results(self, psms, results):
+    def save_results(self, psms, results, models, output_dir=None, file_root="optimhc"):
         """
         Save rescoring results and PSM data.
         
         Parameters:
             psms (PsmContainer): The PSM container object.
             results (mokapot.Results): The rescoring results.
+            models (list): The trained models.
+            output_dir (str, optional): Directory to save results to (defaults to self.output_dir).
+            file_root (str, optional): Root name for output files.
         """
-        results.to_txt(dest_dir=self.output_dir, file_root="optimhc", decoys=True)
-        # psms.psms.to_csv(os.path.join(self.output_dir, 'psms.csv'), index=False)
-        psms.write_pin(os.path.join(self.output_dir, f'{self.experiment}.optimhc.pin'))
+        output_dir = output_dir if output_dir is not None else self.output_dir
+        
+        results.to_txt(dest_dir=output_dir, file_root=file_root, decoys=True)
+        psms.write_pin(os.path.join(output_dir, f'{file_root}.pin'))
 
-        # Merge and save full information
-        # df_combined = pd.concat([
-        #     results.confidence_estimates['psms'],
-        #     results.decoy_confidence_estimates['psms']
-        # ], axis=0)
-
-        # mokapot_columns = ['mokapot score', 'mokapot q-value', 'mokapot PEP']
-
-        # df_full_information = pd.merge(
-        #     df_combined[mokapot_columns + psms.identifier_columns],
-        #     psms.psms,
-        #     on=psms.identifier_columns,
-        #     how='inner'
-        # )
-
-        # columns_order = [col for col in df_full_information.columns if col not in mokapot_columns] + mokapot_columns
-        # df_full_information = df_full_information[columns_order]
-        # df_full_information.to_csv(os.path.join(self.output_dir, 'results_psms.csv'), index=False)
-
-        # logger.debug(f'Combined shape: {df_combined.shape}')
-        # logger.debug(f'Full information shape: {df_full_information.shape}')
+        if self.save_models:
+            model_dir = os.path.join(output_dir, 'models')
+            os.makedirs(model_dir, exist_ok=True)
+            logger.info(f"Saving models to {model_dir}")
+            for i, model in enumerate(models):
+                model.save(os.path.join(model_dir, f'{file_root}.model{i}'))
 
         
-    def visualize_results(self, psms, results, models):
+    def visualize_results(self, psms, results, models, output_dir=None, sources=None):
         """
         Visualize the results of the analysis pipeline.
         
@@ -142,13 +150,15 @@ class Pipeline:
             psms (PsmContainer): The PSM container object.
             results (mokapot.Results): The rescoring results.
             models (list): The trained models used for rescoring.
+            output_dir (str, optional): Directory to save visualizations to.
+            sources (list, optional): Sources of features to include in visualizations.
         """
-        if not self.config['visualization']:
+        if not self.visualization_enabled:
             logger.info("Visualization is disabled. Skipping...")
             return
         
-        fig_dir = os.path.join(self.output_dir, 'figures')
-
+        output_dir = output_dir if output_dir is not None else self.output_dir
+        fig_dir = os.path.join(output_dir, 'figures')
         os.makedirs(fig_dir, exist_ok=True)
 
         plot_qvalues(
@@ -157,9 +167,14 @@ class Pipeline:
             threshold=0.05,
         )
 
+        if sources:
+            rescoring_features = {k: v for k, v in psms.rescoring_features.items() if k in sources}
+        else:
+            rescoring_features = psms.rescoring_features
+
         plot_feature_importance(
             models,
-            psms.rescoring_features,
+            rescoring_features,
             save_path=os.path.join(fig_dir, 'feature_importance.png')
         )
         visualize_target_decoy_features(
@@ -171,103 +186,97 @@ class Pipeline:
             psms,
             save_path=os.path.join(fig_dir, 'feature_correlation.png'),
         )
+    
+    def _run_single_experiment(self, psms, exp_config, exp_name, exp_dir):
+        """
+        Run a single experiment with the specified configuration.
+        
+        Parameters:
+            psms (PsmContainer): The PSM container object.
+            exp_config (dict): Configuration for this experiment.
+            exp_name (str): Name of the experiment.
+            exp_dir (str): Directory to save experiment results.
+            
+        Returns:
+            bool: True if experiment succeeded, False otherwise.
+        """
+        try:
+            os.makedirs(exp_dir, exist_ok=True)
+            
+            source = exp_config.get('source', None)
+            model_type = exp_config.get('model', self.model_type)
+            n_jobs = exp_config.get('numJobs', 1)
+            
+            logger.info(f"Running experiment with sources: {source}")
+            
+            features = [feature for s in source for feature in psms.rescoring_features[s]]
+            logger.info(f"Running experiment with features: {features}")
+            
+            results, models = self.rescore(
+                psms, 
+                model_type=model_type,
+                n_jobs=self.n_jobs,
+                test_fdr=self.test_fdr,
+                rescoring_features=features
+            )
+            
+            self.save_results(
+                psms, 
+                results, 
+                models, 
+                output_dir=exp_dir, 
+                file_root=exp_name
+            )
+            
+            pin_path = os.path.join(exp_dir, f'{exp_name}.optimhc.pin')
+            psms.write_pin(pin_path, source=source)
+            
+            self.visualize_results(
+                psms, 
+                results, 
+                models, 
+                output_dir=exp_dir,
+                sources=source
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Experiment {exp_name} failed: {e}")
+            return False
 
         
     def run(self):
         """Run the complete pipeline."""
         logger.info("Starting analysis pipeline")
         
-        # TODO: Dynamicaly import relevant generators (placeholder)
-        # import_generators(self.config)
-        
-        # Read input PSMs
         psms = self.read_input()
-        
-        # Generate features
-        generate_features(psms, self.config)
-        
-        # Rescore
+        psms = self._generate_features(psms)
         results, models = self.rescore(psms)
-        
-        # Save results
-        self.save_results(psms, results)
-        
-        # Visualization
+        self.save_results(psms, results, models)
         self.visualize_results(psms, results, models)
         
         logger.info(f"Analysis pipeline completed, results saved to {self.output_dir}")
+        
+        return psms, results, models
 
         
     def run_experiments(self):
         """Run experiments with different feature combinations."""
         logger.info("Starting experiment mode with multiple feature combinations")
         
-        # Import relevant generators (placeholder)
-        import_generators(self.config)
-        
-        # Read input PSMs
         psms = self.read_input()
-        
-        # Generate features
-        generate_features(psms, self.config)
-        
-        # Save the initial PSMs data
+        psms = self._generate_features(psms)
+
         pin_path = os.path.join(self.output_dir, f'optimhc.{self.experiment}.pin')
-        psms.write_pin(pin_path)
-        # psms.psms.to_csv(os.path.join(self.output_dir, 'psms.csv'), index=False)
-        
-        # Run experiments
+        #psms.write_pin(pin_path)
+
         experiment_configs = self.config.get('experiments', [])
         for i, exp_config in enumerate(experiment_configs):
-            try:
-                logger.info(f"Running experiment {i + 1}...")
-
-                exp_name = exp_config.get('name', f'Experiment_{i + 1}')
-                exp_dir = os.path.join(self.output_dir, exp_name)
-                os.makedirs(exp_dir, exist_ok=True)
-
-                source = exp_config.get('source', None)
-                logger.info(f"Running experiment with sources: {source}")
-                features = [feature for s in source for feature in psms.rescoring_features[s]]
-                logger.info(f"Running experiment with features: {features}")
-                
-                n_jobs = self.config['global_parameters']['n_processes']
-                logger.debug(f"n_jobs: {n_jobs}")
-                
-                try:
-                    results, models = self.rescore(
-                        psms, 
-                        model_type=exp_config.get('model', None),
-                        n_jobs=n_jobs,
-                        test_fdr=0.01,
-                        rescoring_features=features
-                    )
-                except Exception as e:
-                    logger.error(f"Experiment {exp_name} failed during rescore: {e}")
-                    continue  
-
-                results.to_txt(dest_dir=exp_dir, decoys=True)
-
-                for i, model in enumerate(models):
-                    model.save(os.path.join(exp_dir, f'model.{i}'))
-                    
-                pin_path = os.path.join(exp_dir, f'{exp_name}.pin')
-                psms.write_pin(pin_path, source=source)
-
-                plot_qvalues(
-                    results,
-                    output_dir=exp_dir,
-                    threshold=0.05
-                )
-
-                rescoring_features = {k: v for k, v in psms.rescoring_features.items() if k in source}
-                plot_feature_importance(
-                    models,
-                    rescoring_features,
-                    save_path=os.path.join(exp_dir, 'feature_importance.png')
-                )
-            except Exception as e:
-                logger.error(f"Experiment {exp_name if 'exp_name' in locals() else i+1} encountered an unexpected error: {e}")
-                continue
+            exp_name = exp_config.get('name', f'Experiment_{i + 1}')
+            exp_dir = os.path.join(self.output_dir, exp_name)
+            
+            logger.info(f"Running experiment {i + 1}: {exp_name}")
+            self._run_single_experiment(psms, exp_config, exp_name, exp_dir)
         
-        logger.info("Experiments completed")
+        logger.info("All experiments completed")

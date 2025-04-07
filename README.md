@@ -51,7 +51,7 @@ Each feature generator is specified with its `name` and an optional `params` sub
 | `Basic`             | N/A                                                                                                                          | Generates basic sequence features.                                                       |
 | `SpectraSimilarity` | `mzmlDir: ./data`<br>`spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+`<br>`model: AlphaPeptDeep_ms2_generic`<br>`collisionEnergy: 28`<br>`instrument: LUMOS`<br>`tolerance: 20`<br>`numTopPeaks: 36`<br>`url: koina.wilhelmlab.org:443` | Computes features based on the similarity between experimental spectra and predicted spectra. See more options on https://koina.proteomicsdb.org/ |
 | `DeepLC`            | `calibrationCriteria: expect`<br>`lowerIsBetter: True`<br>`calibrationSize: 0.1`                                             | Creates retention time predictions by calibrating using DeepLC.                           |
-| `LadderPeptide`     | `minOverlapLength: 7`<br>`minLength: 7`<br>`maxLength: 20`<br>`ladderScore: expect`                                           | Generates ladder peptide features for grouping similar peptides.                         |
+| `OverlappingPeptide`     | `minOverlapLength: 7`<br>`minLength: 7`<br>`maxLength: 20`<br>`overlappingScore: expect`                                           | Generates overlapping peptide features for grouping similar peptides.                         |
 | `PWM`               | `class: I`                                                                                                                   | Generates position weight matrix features for MHC class I and class II peptides.                        |
 | `MHCflurry`         | N/A                                                                                                                          | Predicts class I binding affinities using the MHCflurry model.                                     |
 | `NetMHCpan`         | N/A                                                                                                                          | Predicts class I peptide-MHC binding affinity using NetMHCpan.                                     |
@@ -122,12 +122,12 @@ featureGenerator:
       calibrationCriteria: expect
       lowerIsBetter: True
       calibrationSize: 0.1
-  - name: LadderPeptide
+  - name: OverlappingPeptide
     params:
       minOverlapLength: 7
       minLength: 7
       maxLength: 20
-      ladderScore: expect 
+      overlappingScore: expect 
   - name: PWM
     params:
       class: I
@@ -146,7 +146,7 @@ experiments:
     source: ["Original"]
     model: "Percolator"
   - name: "Complete"
-    source: ["Original", "Basic", "DeepLC", "MHCflurry", "NetMHCpan", "PWM", "LadderPeptide"]
+    source: ["Original", "Basic", "DeepLC", "MHCflurry", "NetMHCpan", "PWM", "OverlappingPeptide"]
     model: "XGBoost"
 ```
 

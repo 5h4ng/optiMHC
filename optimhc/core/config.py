@@ -1,4 +1,5 @@
 # TODO: Validate the config file
+# TODO: Create a config object to handle the config file
 
 import yaml
 import logging
@@ -9,28 +10,21 @@ logger = logging.getLogger(__name__)
 
 # Default configuration with all possible parameters
 DEFAULT_CONFIG = {
-    'output_dir': './results',
-    'log_file': None,  # Will be set to os.path.join(output_dir, 'log') if None
-    'input_type': 'pepxml',
-    'input_files': [],
-    'decoy_prefix': 'DECOY_',
+    'outputDir': './results',
+    'inputType': 'pepxml',
+    'inputFile': [],
+    'decoyPrefix': 'DECOY_',
     'visualization': True,
-    'score': None,
+    'saveModels': True,
     'allele': [],
-    'global_parameters': {
-        'remove_modification': True,
-        'remove_pre_nxt_aa': False,
-        'n_processes': 1,
-        'oxidation_tag': None,
-        'show_progress': True
-    },
+    'numProcess': 32,
+    'removePreNxtAA': False,
+    'showProgress': True,
     'rescore': {
-        'test_fdr': 0.01,
-        'model': 'percolator',
-        'n_jobs': 1
+        'testFDR': 0.01,
+        'model': 'Percolator',
+        'numJobs': 1
     },
-    'feature_generators': []
-    # Additional feature generator default configs can be added as needed
 }
 
 def _deep_merge(default, override):
@@ -73,10 +67,7 @@ def load_config(config_path):
         user_config = yaml.safe_load(f)
     
     config = _deep_merge(DEFAULT_CONFIG, user_config)
-    
-    # Set log_file if not provided
-    if config['log_file'] is None:
-        config['log_file'] = os.path.join(config['output_dir'], 'log')
+
     
     # TODO: Add config validation here
     

@@ -8,17 +8,13 @@ logger = logging.getLogger(__name__)
 
 def read_pin(
     pin_files: Union[str, List[str], pd.DataFrame],
-    score_column: Optional[str] = None,
     retention_time_column: Optional[str] = None,
-    *args,
-    **kwargs
 ) -> PsmContainer: 
     """
     Reads a Percolator INput (PIN) file into a PsmContainer object.
 
     Parameters:
         pin_file (Union[str, List[str]], pd.DataFrame): The file path to the PIN file or a list of file paths.
-        score_column (Optional[str]): The column containing the Percolator score.
         retention_time_column (Optional[str]): The column containing the retention time.
     
     Returns:
@@ -33,13 +29,21 @@ def read_pin(
     )
     logger.info(f"Read {len(pin_df)} PSMs from {len(pin_files)} PIN files.")
     logger.debug(pin_df.head())
+    logger.debug(pin_df.columns)
+    logger.debug(pin_df.iloc[0])
 
-    def find_required_columns(col: str, columns: List[str]):
-        if col not in columns:
-            raise ValueError(f"Column '{col}' not found in PSM data.")
-        return col
+    def find_required_columns(col: str, columns: List[str]) -> str:
+        """
+        Case-insensitive search for a column in the DataFrame.
+        Returns the matching column name with original casing.
+        """
+        col_lower = col.lower()
+        column_map = {c.lower(): c for c in columns}
+        if col_lower not in column_map:
+            raise ValueError(f"Column '{col}' not found in PSM data (case-insensitive).")
+        return column_map[col_lower]
     
-    # non-feature columns
+    # non-feature columns (case-insensitive search)
     label = find_required_columns('Label', pin_df.columns)
     scan = find_required_columns('ScanNr', pin_df.columns)
     specid = find_required_columns('SpecId', pin_df.columns)
@@ -47,32 +51,38 @@ def read_pin(
     protein = find_required_columns('Proteins', pin_df.columns)
 
     # Comet: P2PI20160713_pilling_C1RA2_BB72_P1_31_3_1
-    # - unique_id: P2PI20160713_pilling_C1RA2_BB72_P1_31_3
-    # - hit_rank: 1
-
     # MSFragger: P2PI20160713_pilling_C1RA2_BB72_P1.3104.3104.2_1
-    # - unique_id: P2PI20160713_pilling_C1RA2_BB72_P1.3104.3104.2
-    # - hit_rank: 1
 
     def parse_specid(specid: str) -> Tuple[str, int]:
-        parts = specid.rsplit('_', 1)
-        unique_id = parts[0]
-        hit_rank = int(parts[1])
-        return unique_id, hit_rank
+        try:
+            parts = specid.rsplit('_', 1)
+            if len(parts) != 2:
+                raise ValueError(f"SpecId format invalid: {specid}")
+            unique_id = parts[0]
+            hit_rank = int(parts[1])
+            return unique_id, hit_rank
+        except Exception as e:
+            logger.error(f"Error parsing specid '{specid}': {e}")
+            raise ValueError(f"SpecId format invalid: {specid}") from e
     
     hit_rank = 'rank'
-    if 'rank' in pin_df.columns: # MSFragger
+    if 'rank' in [c.lower() for c in pin_df.columns]: 
         pin_df[specid], _ = zip(*pin_df[specid].apply(parse_specid))
     else:
         pin_df[specid], pin_df['rank'] = zip(*pin_df[specid].apply(parse_specid))
 
+    retention_time_column = (
+        find_required_columns(retention_time_column, pin_df.columns)
+        if retention_time_column else None
+    )
+
     # feature columns: columns that are not non-feature columns
-    retention_time_column = find_required_columns(retention_time_column, pin_df.columns) if retention_time_column else None
-    feature_columns = [col for col in pin_df.columns if col not in [label, scan, specid, peptide, protein]]
+    non_feature_columns = [label, scan, specid, peptide, protein]
+    feature_columns = [col for col in pin_df.columns if col not in non_feature_columns]
 
-    logger.info(f"Columns: label={label}, scan={scan}, specid={specid}, peptide={peptide}, protein={protein}, hit_rank={hit_rank}, score={score_column}, retention_time={retention_time_column}, features={feature_columns}")
+    logger.info(f"Columns: label={label}, scan={scan}, specid={specid}, peptide={peptide}, \
+                protein={protein}, hit_rank={hit_rank}, retention_time={retention_time_column}, features={feature_columns}")
 
-    # convert the type
     pin_df[scan] = pin_df[scan].astype(str)
     pin_df[specid] = pin_df[specid].astype(str)
     pin_df[peptide] = pin_df[peptide].astype(str)
@@ -91,7 +101,7 @@ def read_pin(
         psms=pin_df,
         label_column=label,
         scan_column=scan,
-        spectra_column=specid,
+        spectrum_column=specid,
         ms_data_file_column=None,
         peptide_column=peptide,
         protein_column=protein,
@@ -99,12 +109,12 @@ def read_pin(
         hit_rank_column=hit_rank,
         retention_time_column=retention_time_column
     )
-  
-  
+
+
 def _read_single_pin_as_df(pin_file: str) -> pd.DataFrame:
     """
     Proteins column in PIN file is a tab-separated list of proteins.
-    This function reads the PIN file and store the proteins in one column of dataframe.
+    This function reads the PIN file and stores the proteins in one column of a dataframe.
 
     Parameters:
         pin_file (str): The file path to the PIN file.
@@ -122,6 +132,6 @@ def _read_single_pin_as_df(pin_file: str) -> pd.DataFrame:
             proteins_column_num  = len(parts) - header_len + 1
             proteins = '\t'.join(parts[-proteins_column_num:])
             data.append(parts[:len(parts) - proteins_column_num] + [proteins])
-    df = pd.DataFrame(data, columns=header)
+    df = pd.DataFrame(data, columns=header) 
+    logger.debug(f"Header: {header}") 
     return df
-

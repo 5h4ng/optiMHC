@@ -96,7 +96,8 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         Returns:
             List[str]: List of feature column names.
         """
-        return ['observed_retention_time', 'predicted_retention_time', 'rt_diff', 'abs_rt_diff', 'retention_time_ratio']
+        return ['observed_retention_time', 'predicted_retention_time', 'retention_time_diff',
+                 'abs_retention_time_diff', 'retention_time_ratio']
     
 
     @property
@@ -186,14 +187,14 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         # Calculate retention time differences
         rt_diffs = predictions - self.deeplc_df['tr']
         self.deeplc_df['predicted_retention_time'] = predictions
-        self.deeplc_df['rt_diff'] = rt_diffs
+        self.deeplc_df['retention_time_diff'] = rt_diffs
 
         result_df = pd.DataFrame()
         result_df['original_seq'] = self.deeplc_df['original_seq']
         result_df['observed_retention_time'] = self.deeplc_df['tr']
         result_df['predicted_retention_time'] = self.deeplc_df['predicted_retention_time']
-        result_df['rt_diff'] = self.deeplc_df['rt_diff']
-        result_df['abs_rt_diff'] = self.deeplc_df['rt_diff'].abs()
+        result_df['retention_time_diff'] = self.deeplc_df['retention_time_diff']
+        result_df['abs_retention_time_diff'] = self.deeplc_df['retention_time_diff'].abs()
         
         # Adopt from 'DeepRescore2': RTR = min(pred, obs) / max(pred, obs)
         result_df['retention_time_ratio'] = np.minimum(

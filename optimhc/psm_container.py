@@ -313,17 +313,24 @@ class PsmContainer:
         self._psms['metadata'] = merged_df['metadata']
 
 
-    def retain_top_hits(self, n: int = 1) -> None:
+    def get_top_hits(self, n: int = 1):
         """
-        Retains only the top n hits for each spectrum in the PSM DataFrame.
+        Returns the top n hits based on the hit rank column.
+        If the hit rank column is not specified, returns the original PSMs.
 
         Parameters:
-            n (int): The number of top hits to retain.
+            n (int): The number of top hits to return. Default is 1.
+
+        Returns:
+            PsmContainer: A new PsmContainer object containing the top n hits.
         """
         if self.hit_rank_column is None:
-            raise ValueError("No hit rank column specified.")
+            logger.warning("Rank column not specified. Return the original PSMs.")
+            return self.copy()
         
-        self._psms = self._psms[self._psms[self.hit_rank_column] <= n]
+        psms = self.copy()
+        psms._psms = psms._psms[psms._psms[self.hit_rank_column] <= n]
+        return psms
 
 
     def add_features(
@@ -530,12 +537,12 @@ class PsmContainer:
         pin_df.to_csv(output_file, sep="\t", index=False)
         logger.info("PIN file written to %s", output_file) 
 
-        return pin_df       
-
-        
-    
+        return pin_df
 
 
 
-            
+
+
+
+
 

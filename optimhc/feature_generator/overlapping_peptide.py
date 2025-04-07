@@ -1,4 +1,4 @@
-# feature_generator/ladder_peptide.py
+# feature_generator/overlapping_peptide.py
 
 import logging
 import pandas as pd
@@ -15,7 +15,7 @@ from optimhc.psm_container import PsmContainer
 logger = logging.getLogger(__name__)
 
 
-class LadderPeptideFeatureGenerator(BaseFeatureGenerator):
+class OverlappingPeptideFeatureGenerator(BaseFeatureGenerator):
     """
     Generates features based on peptide sequence overlaps using the Overlap-Layout-Consensus (OLC) algorithm.
 
@@ -111,7 +111,7 @@ class LadderPeptideFeatureGenerator(BaseFeatureGenerator):
         self.full_data = None
         self._overlap_graph = None
         self._simplified_graph = None
-        logger.info(f"Initialized LadderPeptideFeatureGenerator with {len(peptides)} peptides and minimum overlap length: {min_overlap_length}")
+        logger.info(f"Initialized OverlappingPeptideFeatureGenerator with {len(peptides)} peptides and minimum overlap length: {min_overlap_length}")
         logger.info(f"remove_pre_nxt_aa: {remove_pre_nxt_aa}, remove_modification: {remove_modification}")
         logger.info(f"Peptide filtering parameters - min_length: {min_length}, max_length: {max_length}, min_entropy: {min_entropy}")
 
@@ -131,10 +131,10 @@ class LadderPeptideFeatureGenerator(BaseFeatureGenerator):
     def feature_columns(self) -> List[str]:
         """Returns the feature column names."""
         '''
-        return ['brother_count', 'log_brother_count', 'overlap_rank', 'log_overlap_rank',
-                 'contig_seq_length_diff', 'contig_length', 'contig_seq_length_diff_ratio']
+        return ['contig_member_count', 'log_contig_member_count', 'contig_member_rank', 'log_contig_member_rank',
+                 'contig_seq_length_diff', 'contig_length', 'contig_extension_ratio']
         '''
-        return ['brother_count', 'contig_seq_length_diff_ratio', 'overlap_rank', 'contig_length']
+        return ['contig_member_count', 'contig_extension_ratio', 'contig_member_rank', 'contig_length']
 
 
     @property
@@ -492,23 +492,23 @@ class LadderPeptideFeatureGenerator(BaseFeatureGenerator):
             contig_idx = self.peptide_to_contig.get(pep, None)
             if contig_idx is not None:
                 full_count = len(full_contig_map[contig_idx])
-                brother_count = full_count - 1  # Exclude itself
+                contig_member_count = full_count 
                 contig_length = len(self.assembled_contigs[contig_idx]['sequence'])
             else:
-                brother_count = 0
+                contig_member_count = 0
                 contig_length = len(pep)
             feature_list.append({
                 'clean_peptide': pep,
-                'brother_count': brother_count,
+                'contig_member_count': contig_member_count,
                 'contig_length': contig_length
             })
     
         features_df = pd.DataFrame(feature_list)
-        features_df['log_brother_count'] = features_df['brother_count'].apply(lambda x: np.log(x + 1e-6))
-        features_df['overlap_rank'] = features_df['brother_count'].rank(method='min', ascending=False)
-        features_df['log_overlap_rank'] = features_df['overlap_rank'].apply(lambda x: np.log(x + 1e-6))
+        features_df['log_contig_member_count'] = features_df['contig_member_count'].apply(lambda x: np.log(x + 1e-6))
+        features_df['contig_member_rank'] = features_df['contig_member_count'].rank(method='min', ascending=False)
+        features_df['log_contig_member_rank'] = features_df['contig_member_rank'].apply(lambda x: np.log(x + 1e-6))
         features_df['contig_seq_length_diff'] = features_df['contig_length'] - features_df['clean_peptide'].apply(len)
-        features_df['contig_seq_length_diff_ratio'] = features_df['contig_seq_length_diff'] / features_df['clean_peptide'].apply(len)
+        features_df['contig_extension_ratio'] = features_df['contig_seq_length_diff'] / features_df['clean_peptide'].apply(len)
     
         return features_df
 
@@ -537,18 +537,18 @@ class LadderPeptideFeatureGenerator(BaseFeatureGenerator):
             self.overlap_data = self.overlap_data.merge(features_df, on='clean_peptide', how='left')
             
             # 4. Handle missing features for peptides that were filtered out
-            missing_counts = self.overlap_data['brother_count'].isna().sum()
+            missing_counts = self.overlap_data['contig_member_count'].isna().sum()
             logger.info(f"Number of peptides with missing features (filtered out): {missing_counts}")
             if self.fill_missing == 'median':
                 logger.info("Filling missing values with median.")
                 median_values = {
-                    'brother_count': self.overlap_data['brother_count'].median(),
-                    'log_brother_count': self.overlap_data['log_brother_count'].median(),
-                    'overlap_rank': self.overlap_data['overlap_rank'].median(),
-                    'log_overlap_rank': self.overlap_data['log_overlap_rank'].median(),
+                    'contig_member_count': self.overlap_data['contig_member_count'].median(),
+                    'log_contig_member_count': self.overlap_data['log_contig_member_count'].median(),
+                    'contig_member_rank': self.overlap_data['contig_member_rank'].median(),
+                    'log_contig_member_rank': self.overlap_data['log_contig_member_rank'].median(),
                     'contig_length': self.overlap_data['contig_length'].median(),
                     'contig_seq_length_diff': self.overlap_data['contig_seq_length_diff'].median(),
-                    'contig_seq_length_diff_ratio': self.overlap_data['contig_seq_length_diff_ratio'].median()
+                    'contig_extension_ratio': self.overlap_data['contig_extension_ratio'].median()
                 }
                 self.overlap_data.fillna(value=median_values, inplace=True)
             elif self.fill_missing == 'zero':
@@ -581,7 +581,7 @@ class LadderPeptideFeatureGenerator(BaseFeatureGenerator):
         """
         Returns the full data including brother peptides and contig information for each peptide.
         In the output, the lists of contig peptides and brother peptides include redundant peptides,
-        so that their counts match the corresponding peptide and brother_count.
+        so that their counts match the corresponding peptide and contig_member_count.
         
         Returns:
             pd.DataFrame: DataFrame containing peptides and their brother peptides and contigs.
@@ -616,8 +616,8 @@ class LadderPeptideFeatureGenerator(BaseFeatureGenerator):
 def assign_brother_aggregated_feature(
     psms: PsmContainer,
     feature_columns: Union[str, List[str]],
-    ladder_source: str,
-    source_name: str = 'LadderGroupFeatures'
+    overlapping_source: str,
+    source_name: str = 'OverlappingGroupFeatures'
 ) -> None:
     """
     Assign aggregated features based on brother peptides to the PSMs.
@@ -637,7 +637,7 @@ def assign_brother_aggregated_feature(
     Parameters:
         psms (PsmContainer): PSM container containing the peptides and features.
         feature_columns (Union[str, List[str]]): Name of the feature column(s) to aggregate.
-        ladder_source (str): Source name of the ladder peptide features.
+        overlapping_source (str): Source name of the overlapping peptide features.
         source_name (str): Name of the new feature source.
 
     Returns:
@@ -653,9 +653,9 @@ def assign_brother_aggregated_feature(
     print(metadata)
 
 
-    def get_ladder_data(x):
+    def get_overlapping_data(x):
         try:
-            return x.get(ladder_source, {})
+            return x.get(overlapping_source, {})
         except AttributeError:
             logger.error(f"Metadata for PSM {x} is not a dictionary.")
             return {}
@@ -667,9 +667,9 @@ def assign_brother_aggregated_feature(
             logger.error(f"Invalid metadata for PSM {x}.")
             return None
 
-    ladder_data = metadata.apply(get_ladder_data)
-    contig_sequences = ladder_data.apply(get_contig_sequence)
-    print(ladder_data)
+    overlapping_data = metadata.apply(get_overlapping_data)
+    contig_sequences = overlapping_data.apply(get_contig_sequence)
+    print(overlapping_data)
     print(contig_sequences)
     
     psms_df['ContigSequence'] = contig_sequences
@@ -718,21 +718,21 @@ def assign_brother_aggregated_feature(
 def assign_brother_aggregated_feature(
     psms: PsmContainer,
     feature_columns: Union[str, List[str]],
-    ladder_source: str,
-    source_name: str = 'LadderGroupFeatures'
+    overlapping_source: str,
+    source_name: str = 'OverlappingGroupFeatures'
 ) -> None:
     """
     Assign aggregated features based on brother peptides to the PSMs.
 
     For PSMs with the same ContigSequence (brother peptides), compute the mean of specified features
     and assign these aggregated features back to each PSM in the group. Additionally, compute
-    the sum as mean * (brother_count + 1). If a PSM does not have a ContigSequence (no brothers),
+    the sum as mean * (contig_member_count + 1). If a PSM does not have a ContigSequence (no brothers),
     its new features will be set to the original values.
 
     Parameters:
         psms (PsmContainer): PSM container containing the peptides and features.
         feature_columns (Union[str, List[str]]): Name of the feature column(s) to aggregate.
-        ladder_source (str): Source name of the ladder peptide features.
+        overlapping_source (str): Source name of the overlapping peptide features.
         source_name (str): Name of the new feature source.
 
     Returns:
@@ -746,51 +746,51 @@ def assign_brother_aggregated_feature(
         raise ValueError("The PSMs do not contain metadata.")
     metadata = psms_df[psms.metadata_column]
 
-    def get_ladder_data(x):
+    def get_overlapping_data(x):
         if isinstance(x, dict):
-            return x.get(ladder_source, {})
+            return x.get(overlapping_source, {})
         else:
             logger.warning(f"Invalid metadata entry: {x}")
             return {}
 
-    ladder_data = metadata.apply(get_ladder_data)
+    overlapping_data = metadata.apply(get_overlapping_data)
 
     def get_contig_sequence(x):
         if isinstance(x, dict):
             return x.get('ContigSequence', None)
         else:
-            logger.warning(f"Invalid ladder data entry: {x}")
+            logger.warning(f"Invalid overlapping data entry: {x}")
             return None
 
-    contig_sequences = ladder_data.apply(get_contig_sequence)
+    contig_sequences = overlapping_data.apply(get_contig_sequence)
 
     psms_df['ContigSequence'] = contig_sequences
 
-    if 'brother_count' not in psms_df.columns:
-        raise ValueError("'brother_count' column not found in PSMs.")
+    if 'contig_member_count' not in psms_df.columns:
+        raise ValueError("'contig_member_count' column not found in PSMs.")
     
     missing_features = [feature for feature in feature_columns if feature not in psms_df.columns]
     if missing_features:
         raise ValueError(f"Feature columns not found in PSMs: {missing_features}")
 
     grouped_mean = psms_df.groupby('ContigSequence')[feature_columns].mean().reset_index()
-    grouped_mean = grouped_mean.rename(columns={feature: f"{feature}_brother_peptides_mean" for feature in feature_columns})
+    grouped_mean = grouped_mean.rename(columns={feature: f"{feature}_contig_avg" for feature in feature_columns})
 
     psms_with_agg = psms_df.merge(grouped_mean, on='ContigSequence', how='left')
 
     for feature in feature_columns:
-        mean_feature = f"{feature}_brother_peptides_mean"
-        sum_feature = f"{feature}_brother_peptides_sum"
-        psms_with_agg['brother_count'] = psms_with_agg['brother_count'].fillna(0)
-        psms_with_agg[sum_feature] = psms_with_agg[mean_feature] * (psms_with_agg['brother_count'] + 1)
+        mean_feature = f"{feature}_contig_avg"
+        sum_feature = f"{feature}_contig_sum"
+        psms_with_agg['contig_member_count'] = psms_with_agg['contig_member_count'].fillna(0)
+        psms_with_agg[sum_feature] = psms_with_agg[mean_feature] * (psms_with_agg['contig_member_count'])
         psms_with_agg[sum_feature].fillna(psms_with_agg[feature], inplace=True)
         
     for feature in feature_columns:
-        mean_feature = f"{feature}_brother_peptides_mean"
+        mean_feature = f"{feature}_contig_avg"
         psms_with_agg[mean_feature].fillna(psms_with_agg[feature], inplace=True)
 
-    agg_feature_columns = [f"{feature}_brother_peptides_mean" for feature in feature_columns] + \
-                          [f"{feature}_brother_peptides_sum" for feature in feature_columns]
+    agg_feature_columns = [f"{feature}_contig_avg" for feature in feature_columns] + \
+                          [f"{feature}_contig_sum" for feature in feature_columns]
 
     new_features_df = psms_with_agg[agg_feature_columns]
 
