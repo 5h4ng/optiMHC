@@ -1,6 +1,8 @@
 import os
 import logging
+import gc
 import pandas as pd
+from multiprocessing import Process
 from mokapot.model import PercolatorModel
 
 from optimhc.parser import read_pin, read_pepxml
@@ -21,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 class Pipeline:
     """Pipeline class that encapsulates the entire data processing workflow."""
-    
+
     def __init__(self, config_path):
         """
         Initialize the pipeline with a configuration file.
@@ -41,7 +43,6 @@ class Pipeline:
         self.model_type = self.config.get('rescore', {}).get('model', 'Percolator')
         self.n_jobs = self.config.get('rescore', {}).get('numJobs', 1)
 
-        
     def read_input(self):
         """
         Read input PSMs based on configuration.
@@ -66,7 +67,6 @@ class Pipeline:
             logger.error(f"Failed to read input files: {e}")
             raise 
 
-
     def _generate_features(self, psms):
         """
         Generate features for PSMs.
@@ -77,11 +77,9 @@ class Pipeline:
         Returns:
             PsmContainer: The PSM container with generated features.
         """
-        # TODO: Add dynamic import of feature generators
         generate_features(psms, self.config)
         return psms
-    
-            
+
     def rescore(self, psms, model_type=None, n_jobs=None, test_fdr=None, rescoring_features=None):
         """
         Perform rescoring on the PSMs.
@@ -116,8 +114,7 @@ class Pipeline:
             
         results, models = mokapot.rescore(psms, model=model, test_fdr=test_fdr, **kwargs)
         return results, models
-    
-        
+
     def save_results(self, psms, results, models, output_dir=None, file_root="optimhc"):
         """
         Save rescoring results and PSM data.
@@ -141,7 +138,6 @@ class Pipeline:
             for i, model in enumerate(models):
                 model.save(os.path.join(model_dir, f'{file_root}.model{i}'))
 
-        
     def visualize_results(self, psms, results, models, output_dir=None, sources=None):
         """
         Visualize the results of the analysis pipeline.
@@ -187,7 +183,6 @@ class Pipeline:
             save_path=os.path.join(fig_dir, 'target_decoy_histogram.png'),
         )
 
-    
     def _run_single_experiment(self, psms, exp_config, exp_name, exp_dir):
         """
         Run a single experiment with the specified configuration.
@@ -206,17 +201,21 @@ class Pipeline:
             
             source = exp_config.get('source', None)
             model_type = exp_config.get('model', self.model_type)
-            n_jobs = exp_config.get('numJobs', 1)
+            n_jobs = exp_config.get('numJobs', self.n_jobs)
             
-            logger.info(f"Running experiment with sources: {source}")
+            logger.info(f"Running experiment '{exp_name}' with sources: {source}")
             
-            features = [feature for s in source for feature in psms.rescoring_features[s]]
-            logger.info(f"Running experiment with features: {features}")
+            # Generate list of features based on the provided sources
+            features = []
+            if source:
+                for s in source:
+                    features.extend(psms.rescoring_features.get(s, []))
+            logger.info(f"Features used in experiment '{exp_name}': {features}")
             
             results, models = self.rescore(
                 psms, 
                 model_type=model_type,
-                n_jobs=self.n_jobs,
+                n_jobs=n_jobs,
                 test_fdr=self.test_fdr,
                 rescoring_features=features
             )
@@ -236,14 +235,21 @@ class Pipeline:
                 output_dir=exp_dir,
                 sources=source
             )
-            
             return True
             
         except Exception as e:
-            logger.error(f"Experiment {exp_name} failed: {e}")
+            logger.error(f"Experiment '{exp_name}' failed: {e}")
             return False
 
-        
+        finally:
+            # Explicit resource release to free up memory after each experiment
+            try:
+                del results
+                del models
+            except Exception:
+                pass
+            gc.collect()
+
     def run(self):
         """Run the complete pipeline."""
         logger.info("Starting analysis pipeline")
@@ -255,26 +261,36 @@ class Pipeline:
         self.visualize_results(psms, results, models)
         
         logger.info(f"Analysis pipeline completed, results saved to {self.output_dir}")
-        
         return psms, results, models
 
-        
     def run_experiments(self):
-        """Run experiments with different feature combinations."""
+        """
+        Run experiments with different feature combinations using multiprocessing.
+        
+        Each experiment is executed in its own process for complete resource isolation.
+        """
         logger.info("Starting experiment mode with multiple feature combinations")
         
         psms = self.read_input()
         psms = self._generate_features(psms)
 
+        # Save the generated pin file for reference
         pin_path = os.path.join(self.output_dir, f'optimhc.{self.experiment}.pin')
-        #psms.write_pin(pin_path)
+        psms.write_pin(pin_path)
 
         experiment_configs = self.config.get('experiments', [])
+        processes = []
         for i, exp_config in enumerate(experiment_configs):
             exp_name = exp_config.get('name', f'Experiment_{i + 1}')
             exp_dir = os.path.join(self.output_dir, exp_name)
             
-            logger.info(f"Running experiment {i + 1}: {exp_name}")
-            self._run_single_experiment(psms, exp_config, exp_name, exp_dir)
+            logger.info(f"Starting experiment '{exp_name}' in a separate process")
+            p = Process(target=self._run_single_experiment, args=(psms, exp_config, exp_name, exp_dir))
+            p.start()
+            processes.append(p)
+        
+        # Wait for all experiment processes to finish
+        for p in processes:
+            p.join()
         
         logger.info("All experiments completed")

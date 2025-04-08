@@ -129,7 +129,7 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
             df_deeplc['seq'] = df_deeplc['original_seq']
         
         # Apply extract_unimod_from_peptidoform once and store both results.
-        if not self.mod_dict:
+        if self.mod_dict is None:
             logger.warning("No mod_dict provided. Removing modifications.")
             df_deeplc['seq'] = df_deeplc['seq'].apply(
                 lambda x: utils.remove_modifications(x)
