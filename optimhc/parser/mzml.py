@@ -18,36 +18,49 @@ def extract_mzml_data(mzml_filename, scan_ids=None):
     Returns:
         pd.DataFrame: A DataFrame containing the extracted scan data.
     """
-    filename = mzml_filename.split('/')[-1].replace('.mzML', '')
+    filename = mzml_filename.split("/")[-1].replace(".mzML", "")
     logger.info(f"Extracting scans from {mzml_filename}")
-    
+
     scan_ids = set(scan_ids) if scan_ids is not None else None
-    
-    extracted_scan_ids, mzml_filenames, intensities, mz_values, charges, retention_times = [], [], [], [], [], []
+
+    (
+        extracted_scan_ids,
+        mzml_filenames,
+        intensities,
+        mz_values,
+        charges,
+        retention_times,
+    ) = ([], [], [], [], [], [])
 
     try:
         with mzml.read(mzml_filename) as reader:
             for spectrum in reader:
                 try:
-                    scan_id = int(spectrum['id'].split('scan=')[-1])
+                    scan_id = int(spectrum["id"].split("scan=")[-1])
 
                     if scan_ids is not None and scan_id not in scan_ids:
                         continue
 
-                    mz_array = np.array(spectrum.get('m/z array', []))
-                    intensity_array = np.array(spectrum.get('intensity array', []))
+                    mz_array = np.array(spectrum.get("m/z array", []))
+                    intensity_array = np.array(spectrum.get("intensity array", []))
 
                     charge = None
                     try:
-                        charge = int(spectrum['precursorList']['precursor'][0]['selectedIonList']['selectedIon'][0]['charge state'])
+                        charge = int(
+                            spectrum["precursorList"]["precursor"][0][
+                                "selectedIonList"
+                            ]["selectedIon"][0]["charge state"]
+                        )
                     except (KeyError, ValueError, IndexError):
-                        pass  
+                        pass
 
                     retention_time = None
                     try:
-                        retention_time = float(spectrum['scanList']['scan'][0]['scan start time'])
+                        retention_time = float(
+                            spectrum["scanList"]["scan"][0]["scan start time"]
+                        )
                     except (KeyError, ValueError, IndexError):
-                        pass  
+                        pass
 
                     extracted_scan_ids.append(scan_id)
                     mzml_filenames.append(filename)

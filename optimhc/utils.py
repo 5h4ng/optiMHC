@@ -48,18 +48,19 @@ def remove_pre_and_nxt_aa(peptide: str) -> str:
         str: The peptide sequence with pre and next amino acids removed.
     """
     import re
-    return re.sub(r'^[^.]*\.|\.[^.]*$', '', peptide)
+
+    return re.sub(r"^[^.]*\.|\.[^.]*$", "", peptide)
 
 
-def remove_modifications(peptide: str, keep_modification = None) -> str:
+def remove_modifications(peptide: str, keep_modification=None) -> str:
     """
     Removes modifications from a peptide sequence, with an option to keep specific modifications.
 
     Example:
         - "A.AB[15.99]CDEFGHI.K" -> "A.ABCDEFGHI.K"
-        - "A.AB[UNIMOD:4]C[15.99]DEFGHI.K", keep_modification='UNIMOD:4' 
+        - "A.AB[UNIMOD:4]C[15.99]DEFGHI.K", keep_modification='UNIMOD:4'
             -> "A.AB[UNIMOD:4]CDEFGHI.K"
-    
+
     Parameters:
         peptide (str): The peptide sequence.
         keep_modification (str or list, optional): The modification(s) to keep.
@@ -68,19 +69,21 @@ def remove_modifications(peptide: str, keep_modification = None) -> str:
         str: The peptide sequence with modifications removed or kept.
     """
     import re
+
     if keep_modification is None:
-        return re.sub(r'\[.*?\]', '', peptide)
+        return re.sub(r"\[.*?\]", "", peptide)
     else:
         if not isinstance(keep_modification, list):
             keep_modification = [keep_modification]
-            
+
         def replace_mod(match):
             mod = match.group(0)
             if any(keep in mod for keep in keep_modification):
                 return mod
-            return ''
-        return re.sub(r'\[.*?\]', replace_mod, peptide)
-        
+            return ""
+
+        return re.sub(r"\[.*?\]", replace_mod, peptide)
+
 
 def preprocess_peptide(peptide: str) -> str:
     """
@@ -107,45 +110,49 @@ def list_all_files_in_directory(directory_path: str) -> List[str]:
 
     Parameters:
         directory_path (str): The path to the directory.
-        
+
     Returns:
         List[str]: A list of file paths.
     """
     path = Path(directory_path)
-    file_list = [str(file) for file in path.rglob('*') if file.is_file()]
+    file_list = [str(file) for file in path.rglob("*") if file.is_file()]
     return file_list
 
 
 def extract_unimod_from_peptidoform(peptide: str, mod_dict: dict) -> tuple:
     """
     Converts a modified peptide sequence into DeepLC format.
-    
+
     Parameters:
         peptide (str): The input peptide sequence with modifications in brackets.
                        Example: 'AANDAGYFNDEM[15.9949]APIEVK[42.0106]TK'
-        mod_dict (dict): A dictionary mapping modification names (in peptide) to 
+        mod_dict (dict): A dictionary mapping modification names (in peptide) to
                          corresponding Unimod names.
                          Example: {'15.9949': 'Oxidation', '42.0106': 'Acetyl'}
-    
+
     Returns:
         tuple: A tuple containing:
             - seq (str): The unmodified peptide sequence.
-            - modifications (str): A string of modifications formatted as 
+            - modifications (str): A string of modifications formatted as
                                    `position|UnimodName`, separated by pipes `|`.
                                    Example: '12|Oxidation|18|Acetyl'
     """
     clean_sequence = ""
     modifications = []
-    current_position = 0  
-    i = 0  
+    current_position = 0
+    i = 0
     while i < len(peptide):
-        if peptide[i] == '[':  
-            end = peptide.find(']', i)
+        if peptide[i] == "[":
+            end = peptide.find("]", i)
             if end == -1:
-                raise ValueError(f"Invalid modification format in {peptide}: missing closing bracket.")
-            mod_name = peptide[i+1:end]
+                raise ValueError(
+                    f"Invalid modification format in {peptide}: missing closing bracket."
+                )
+            mod_name = peptide[i + 1 : end]
             if mod_name not in mod_dict:
-                raise ValueError(f"Modification '{mod_name}' not found in the dictionary.")
+                raise ValueError(
+                    f"Modification '{mod_name}' not found in the dictionary."
+                )
             modifications.append(f"{current_position}|{mod_dict[mod_name]}")
             i = end + 1
         else:
@@ -153,20 +160,21 @@ def extract_unimod_from_peptidoform(peptide: str, mod_dict: dict) -> tuple:
             current_position += 1
             i += 1
 
-    modification_str = "|".join(modifications)   
-    logger.debug(f'Original peptide: {peptide}')
+    modification_str = "|".join(modifications)
+    logger.debug(f"Original peptide: {peptide}")
     logger.debug(f"Output clean_sequence: {clean_sequence}")
     logger.debug(f"Output modifications: {modification_str}")
     return clean_sequence, modification_str
 
+
 def convert_to_unimod_format(peptide: str, mod_dict: dict) -> str:
     """
     Converts a modified peptide sequence into Unimod format.
-    
+
     Parameters:
         peptide (str): The input peptide sequence with modifications in brackets.
                        Example: 'AANDAGYFNDEM[15.9949]APIEVK[42.0106]TK'
-        mod_dict (dict): A dictionary mapping modification names (in peptide) to 
+        mod_dict (dict): A dictionary mapping modification names (in peptide) to
                          corresponding Unimod names.
                          Example: {'15.9949': 'UNIMOD:4', '42.0106': 'UNIMOD:1'}
     Returns:
@@ -175,8 +183,7 @@ def convert_to_unimod_format(peptide: str, mod_dict: dict) -> str:
     """
     res = peptide
     for key, value in mod_dict.items():
-        res = res.replace(f'[{key}]', f'[{value}]')
-    logger.debug(f'Original peptide: {peptide}')
+        res = res.replace(f"[{key}]", f"[{value}]")
+    logger.debug(f"Original peptide: {peptide}")
     logger.debug(f"Output peptide: {res}")
     return res
-

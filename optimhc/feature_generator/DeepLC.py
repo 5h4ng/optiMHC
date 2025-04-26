@@ -20,7 +20,7 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
     def __init__(
         self,
         psms: PsmContainer,
-        calibration_criteria_column: str ,
+        calibration_criteria_column: str,
         lower_score_is_better: bool = False,
         calibration_set_size: Union[int, float, None] = None,
         processes: int = 1,
@@ -28,7 +28,7 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         remove_pre_nxt_aa: bool = True,
         mod_dict: Optional[Dict[str, str]] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """
         Generate DeepLC-based features for rescoring.
@@ -77,16 +77,15 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
                 path_model=model_path,
             )
         else:
-            self.deeplc_predictor = self.DeepLC(
-                n_jobs=self.processes
-            )
-        logger.info(f"Initialized DeepLCFeatureGenerator with {len(self.psms)} PSMs."
-                    f" Calibration criteria: {self.calibration_criteria_column}."
-                    f" Lower score is better: {self.lower_score_is_better}."
-                    f" Calibration set size: {self.calibration_set_size}."
-                    f" Processes: {self.processes}."
-                    f" Model path: {self.model_path}.")
-
+            self.deeplc_predictor = self.DeepLC(n_jobs=self.processes)
+        logger.info(
+            f"Initialized DeepLCFeatureGenerator with {len(self.psms)} PSMs."
+            f" Calibration criteria: {self.calibration_criteria_column}."
+            f" Lower score is better: {self.lower_score_is_better}."
+            f" Calibration set size: {self.calibration_set_size}."
+            f" Processes: {self.processes}."
+            f" Model path: {self.model_path}."
+        )
 
     @property
     def feature_columns(self) -> List[str]:
@@ -96,9 +95,13 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         Returns:
             List[str]: List of feature column names.
         """
-        return ['observed_retention_time', 'predicted_retention_time', 'retention_time_diff',
-                 'abs_retention_time_diff', 'retention_time_ratio']
-    
+        return [
+            "observed_retention_time",
+            "predicted_retention_time",
+            "retention_time_diff",
+            "abs_retention_time_diff",
+            "retention_time_ratio",
+        ]
 
     @property
     def id_column(self) -> List[str]:
@@ -108,8 +111,7 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         Returns:
             List[str]: List of input columns required for the feature generator.
         """
-        return ['']
-
+        return [""]
 
     def _get_deeplc_df(self):
         """
@@ -120,39 +122,42 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         """
         df_deeplc = pd.DataFrame()
         df_psm = self.psms.psms
-        df_deeplc['original_seq'] = df_psm[self.psms.peptide_column]
-        df_deeplc['label'] = df_psm[self.psms.label_column]
-        
+        df_deeplc["original_seq"] = df_psm[self.psms.peptide_column]
+        df_deeplc["label"] = df_psm[self.psms.label_column]
+
         if self.remove_pre_nxt_aa:
-            df_deeplc['seq'] = df_deeplc['original_seq'].apply(utils.remove_pre_and_nxt_aa)
+            df_deeplc["seq"] = df_deeplc["original_seq"].apply(
+                utils.remove_pre_and_nxt_aa
+            )
         else:
-            df_deeplc['seq'] = df_deeplc['original_seq']
-        
+            df_deeplc["seq"] = df_deeplc["original_seq"]
+
         # Apply extract_unimod_from_peptidoform once and store both results.
         if self.mod_dict is None:
             logger.warning("No mod_dict provided. Removing modifications.")
-            df_deeplc['seq'] = df_deeplc['seq'].apply(
+            df_deeplc["seq"] = df_deeplc["seq"].apply(
                 lambda x: utils.remove_modifications(x)
             )
-            df_deeplc['modifications'] = ''
+            df_deeplc["modifications"] = ""
         else:
-            extracted_results = df_deeplc['seq'].apply(
-                lambda x: utils.extract_unimod_from_peptidoform(x, mod_dict=self.mod_dict)
+            extracted_results = df_deeplc["seq"].apply(
+                lambda x: utils.extract_unimod_from_peptidoform(
+                    x, mod_dict=self.mod_dict
+                )
             )
-            df_deeplc['seq'] = extracted_results.apply(lambda x: x[0])
-            df_deeplc['modifications'] = extracted_results.apply(lambda x: x[1])
-        
+            df_deeplc["seq"] = extracted_results.apply(lambda x: x[0])
+            df_deeplc["modifications"] = extracted_results.apply(lambda x: x[1])
+
         if self.psms.retention_time_column is None:
             raise ValueError("DeepLC requires retention time values.")
-        
-        df_deeplc['tr'] = df_psm[self.psms.retention_time_column]
-        df_deeplc['score'] = df_psm[self.calibration_criteria_column]
+
+        df_deeplc["tr"] = df_psm[self.psms.retention_time_column]
+        df_deeplc["score"] = df_psm[self.calibration_criteria_column]
 
         logger.debug("DeepLC input DataFrame:")
         logger.debug(df_deeplc)
-        
+
         return df_deeplc
-    
 
     def generate_features(self) -> pd.DataFrame:
         """
@@ -171,48 +176,59 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         if self.calibration_set_size:
             calibration_df = self._get_calibration_psms(self.deeplc_df)
             logger.debug(f"Calibrating DeepLC with {len(calibration_df)} PSMs.")
-            self.deeplc_predictor.calibrate_preds(seq_df=calibration_df[['seq', 'tr', 'modifications']])
+            self.deeplc_predictor.calibrate_preds(
+                seq_df=calibration_df[["seq", "tr", "modifications"]]
+            )
 
         # Predict retention times
         logger.info("Predicting retention times using DeepLC.")
-        predictions = self.deeplc_predictor.make_preds(seq_df=self.deeplc_df[['seq', 'tr', 'modifications']])
-        
-        self._raw_predictions = pd.DataFrame({
-            'peptide': self.deeplc_df['seq'],
-            'predicted_rt': predictions,
-            'observed_rt': self.deeplc_df['tr'],
-            'modifications': self.deeplc_df['modifications']
-        })
+        predictions = self.deeplc_predictor.make_preds(
+            seq_df=self.deeplc_df[["seq", "tr", "modifications"]]
+        )
+
+        self._raw_predictions = pd.DataFrame(
+            {
+                "peptide": self.deeplc_df["seq"],
+                "predicted_rt": predictions,
+                "observed_rt": self.deeplc_df["tr"],
+                "modifications": self.deeplc_df["modifications"],
+            }
+        )
 
         # Calculate retention time differences
-        rt_diffs = predictions - self.deeplc_df['tr']
-        self.deeplc_df['predicted_retention_time'] = predictions
-        self.deeplc_df['retention_time_diff'] = rt_diffs
+        rt_diffs = predictions - self.deeplc_df["tr"]
+        self.deeplc_df["predicted_retention_time"] = predictions
+        self.deeplc_df["retention_time_diff"] = rt_diffs
 
         result_df = pd.DataFrame()
-        result_df['original_seq'] = self.deeplc_df['original_seq']
-        result_df['observed_retention_time'] = self.deeplc_df['tr']
-        result_df['predicted_retention_time'] = self.deeplc_df['predicted_retention_time']
-        result_df['retention_time_diff'] = self.deeplc_df['retention_time_diff']
-        result_df['abs_retention_time_diff'] = self.deeplc_df['retention_time_diff'].abs()
-        
+        result_df["original_seq"] = self.deeplc_df["original_seq"]
+        result_df["observed_retention_time"] = self.deeplc_df["tr"]
+        result_df["predicted_retention_time"] = self.deeplc_df[
+            "predicted_retention_time"
+        ]
+        result_df["retention_time_diff"] = self.deeplc_df["retention_time_diff"]
+        result_df["abs_retention_time_diff"] = self.deeplc_df[
+            "retention_time_diff"
+        ].abs()
+
         # Adopt from 'DeepRescore2': RTR = min(pred, obs) / max(pred, obs)
-        result_df['retention_time_ratio'] = np.minimum(
-            result_df['predicted_retention_time'], result_df['observed_retention_time']
+        result_df["retention_time_ratio"] = np.minimum(
+            result_df["predicted_retention_time"], result_df["observed_retention_time"]
         ) / np.maximum(
-            result_df['predicted_retention_time'], result_df['observed_retention_time']
+            result_df["predicted_retention_time"], result_df["observed_retention_time"]
         )
 
         for col in self.feature_columns:
             nan_rows = result_df[result_df[col].isna()]
             if not nan_rows.empty:
-                logger.warning(f"Column {col} contains NaN values. Rows with NaN values:\n{nan_rows}")
+                logger.warning(
+                    f"Column {col} contains NaN values. Rows with NaN values:\n{nan_rows}"
+                )
             median_value = result_df[col].median()
             result_df[col].fillna(median_value, inplace=True)
             result_df[col] = result_df[col].astype(float)
 
         return result_df
-    
 
     def _get_calibration_psms(self, deeplc_df: pd.DataFrame) -> pd.DataFrame:
         """
@@ -229,8 +245,7 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
 
         # Sort PSMs based on calibration criteria
         sorted_psms = deeplc_df.sort_values(
-            by='score',
-            ascending=self.lower_score_is_better
+            by="score", ascending=self.lower_score_is_better
         )
 
         # Select calibration set
@@ -257,11 +272,10 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
 
         calibration_psms = sorted_psms.head(n_cal)
         logger.debug(f"Selected {n_cal} PSMs for calibration.")
-        calibration_psms = calibration_psms[calibration_psms['label'] == True]
+        calibration_psms = calibration_psms[calibration_psms["label"] == True]
         logger.debug(f"Selected {len(calibration_psms)} target PSMs for calibration.")
         return calibration_psms
-    
-    
+
     def get_full_data(self) -> pd.DataFrame:
         """
         Get the full DeepLC DataFrame.
@@ -271,7 +285,7 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
                 DataFrame containing the DeepLC input data.
         """
         return self.deeplc_df
-    
+
     @property
     def raw_predictions(self) -> pd.DataFrame:
         """
@@ -285,7 +299,7 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         if self._raw_predictions is None:
             self.generate_features()
         return self._raw_predictions
-    
+
     def get_raw_predictions(self) -> pd.DataFrame:
         """
         Get the raw predictions DataFrame.
@@ -295,7 +309,7 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
                 DataFrame containing the raw predictions.
         """
         return self.raw_predictions
-    
+
     def save_raw_predictions(self, file_path: str, **kwargs) -> None:
         """
         Save the raw prediction results to a file.
@@ -304,8 +318,8 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
             file_path (str): Path to save the file
             **kwargs: Other parameters passed to pandas.DataFrame.to_csv
         """
-        if 'index' not in kwargs:
-            kwargs['index'] = False
+        if "index" not in kwargs:
+            kwargs["index"] = False
         if self.raw_predictions is not None:
             self.raw_predictions.to_csv(file_path, **kwargs)
             logger.info(f"")

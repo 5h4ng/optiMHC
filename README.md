@@ -139,15 +139,6 @@ rescore:
   testFDR: 0.01
   model: Percolator
   numJobs: 4
-
-# Optional: Experiment Mode configuration
-experiments:
-  - name: "Baseline"
-    source: ["Original"]
-    model: "Percolator"
-  - name: "Complete"
-    source: ["Original", "Basic", "DeepLC", "MHCflurry", "NetMHCpan", "PWM", "OverlappingPeptide"]
-    model: "XGBoost"
 ```
 
 ---

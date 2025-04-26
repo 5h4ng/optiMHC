@@ -27,12 +27,12 @@ class BasicFeatureGenerator(BaseFeatureGenerator):
     """
 
     def __init__(
-            self,
-            peptides: List[str],
-            remove_pre_nxt_aa: bool = True,
-            remove_modification: bool = True,
-            *args,
-            **kwargs
+        self,
+        peptides: List[str],
+        remove_pre_nxt_aa: bool = True,
+        remove_modification: bool = True,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.peptides = peptides
@@ -41,19 +41,17 @@ class BasicFeatureGenerator(BaseFeatureGenerator):
         self.avg_length = None
         logger.info(f"Initialized BasicFeatureGenerator with {len(peptides)} peptides.")
 
-
     @property
     def feature_columns(self) -> List[str]:
         """Return the list of generated feature column names."""
         return [
             #'peptide_length',
-            'length_diff_from_avg',
-            'abs_length_diff_from_avg',
-            'unique_aa_count',
-            'unique_aa_proportion',
-            'shannon_entropy'  
+            "length_diff_from_avg",
+            "abs_length_diff_from_avg",
+            "unique_aa_count",
+            "unique_aa_proportion",
+            "shannon_entropy",
         ]
-
 
     @property
     def id_column(self) -> List[str]:
@@ -63,8 +61,7 @@ class BasicFeatureGenerator(BaseFeatureGenerator):
         Returns:
             List[str]: List of input column names.
         """
-        return ['Peptide']
-
+        return ["Peptide"]
 
     def _preprocess_peptide(self, peptide: str) -> str:
         """
@@ -81,7 +78,6 @@ class BasicFeatureGenerator(BaseFeatureGenerator):
         if self.remove_modification:
             peptide = utils.remove_modifications(peptide)
         return peptide
-
 
     def _shannon_entropy(self, sequence: str) -> float:
         """
@@ -100,7 +96,6 @@ class BasicFeatureGenerator(BaseFeatureGenerator):
         freq_list = [sequence.count(base) / len(sequence) for base in bases]
         return entropy(freq_list, base=2)
 
-
     def generate_features(self) -> pd.DataFrame:
         """
         Generate basic features for the provided peptides.
@@ -109,17 +104,29 @@ class BasicFeatureGenerator(BaseFeatureGenerator):
             pd.DataFrame: DataFrame containing peptides and their computed features.
         """
         logger.info("Generating basic features.")
-        peptides_df = pd.DataFrame(self.peptides, columns=['Peptide'])
-        peptides_df['clean_peptide'] = peptides_df['Peptide'].apply(self._preprocess_peptide)
-        peptides_df['peptide_length'] = peptides_df['clean_peptide'].apply(len)
-        self.avg_length = peptides_df['peptide_length'].mean()
-        peptides_df['length_diff_from_avg'] = peptides_df['peptide_length'] - self.avg_length
-        peptides_df['abs_length_diff_from_avg'] = peptides_df['length_diff_from_avg'].abs()
-        peptides_df['unique_aa_count'] = peptides_df['clean_peptide'].apply(lambda x: len(set(x)))
-        peptides_df['unique_aa_proportion'] = peptides_df['unique_aa_count'] / peptides_df['peptide_length']
-        peptides_df['shannon_entropy'] = peptides_df['clean_peptide'].apply(self._shannon_entropy)  
-        features_df = peptides_df[['Peptide'] + self.feature_columns]
-        
+        peptides_df = pd.DataFrame(self.peptides, columns=["Peptide"])
+        peptides_df["clean_peptide"] = peptides_df["Peptide"].apply(
+            self._preprocess_peptide
+        )
+        peptides_df["peptide_length"] = peptides_df["clean_peptide"].apply(len)
+        self.avg_length = peptides_df["peptide_length"].mean()
+        peptides_df["length_diff_from_avg"] = (
+            peptides_df["peptide_length"] - self.avg_length
+        )
+        peptides_df["abs_length_diff_from_avg"] = peptides_df[
+            "length_diff_from_avg"
+        ].abs()
+        peptides_df["unique_aa_count"] = peptides_df["clean_peptide"].apply(
+            lambda x: len(set(x))
+        )
+        peptides_df["unique_aa_proportion"] = (
+            peptides_df["unique_aa_count"] / peptides_df["peptide_length"]
+        )
+        peptides_df["shannon_entropy"] = peptides_df["clean_peptide"].apply(
+            self._shannon_entropy
+        )
+        features_df = peptides_df[["Peptide"] + self.feature_columns]
+
         for col in self.feature_columns:
             features_df[col] = features_df[col].astype(float)
         if features_df.isna().sum().sum() > 0:

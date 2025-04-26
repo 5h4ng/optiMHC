@@ -5,7 +5,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def plot_qvalues(results, save_path=None, dpi=300, figsize=(15, 10), threshold=0.05, colors=None, **kwargs):
+
+def plot_qvalues(
+    results,
+    save_path=None,
+    dpi=300,
+    figsize=(15, 10),
+    threshold=0.05,
+    colors=None,
+    **kwargs,
+):
     """
     Plot q-values for the given results.
 
@@ -18,33 +27,40 @@ def plot_qvalues(results, save_path=None, dpi=300, figsize=(15, 10), threshold=0
         threshold: The q-value threshold for plotting.
         colors: A list of colors for the plots.
         **kwargs: Additional plotting parameters.
-    
+
     """
     if not isinstance(results, list):
         results = [results]
 
     if colors is None:
         colors = [
-            "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728",
-            "#9467bd", "#8c564b", "#e377c2", "#7f7f7f",
-            "#bcbd22", "#17becf"
+            "#1f77b4",
+            "#ff7f0e",
+            "#2ca02c",
+            "#d62728",
+            "#9467bd",
+            "#8c564b",
+            "#e377c2",
+            "#7f7f7f",
+            "#bcbd22",
+            "#17becf",
         ]
 
     fig, axs = plt.subplots(1, 2, figsize=figsize, dpi=dpi)
-    
+
     for i, result in enumerate(results):
-        for ax, level in zip(axs, ['psms', 'peptides']):
+        for ax, level in zip(axs, ["psms", "peptides"]):
             result.plot_qvalues(
                 level=level,
                 c=colors[i % len(colors)],
                 ax=ax,
                 threshold=threshold,
-                label=f'Result {i+1}' if len(results) > 1 else 'Results',
+                label=f"Result {i+1}" if len(results) > 1 else "Results",
                 linewidth=1,
-                **kwargs
+                **kwargs,
             )
             ax.legend(frameon=False)
-            ax.set_title(f'{level}')
+            ax.set_title(f"{level}")
 
     plt.tight_layout()
     return save_or_show_plot(save_path, logger)

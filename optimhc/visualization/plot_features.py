@@ -9,7 +9,10 @@ from optimhc.visualization.save_or_show_plot import save_or_show_plot
 
 logger = logging.getLogger(__name__)
 
-def plot_feature_importance(models, rescoring_features, save_path=None, sort=False, error=False, **kwargs):
+
+def plot_feature_importance(
+    models, rescoring_features, save_path=None, sort=False, error=False, **kwargs
+):
     """
     Unified function to plot average feature importance across multiple models.
 
@@ -33,108 +36,127 @@ def plot_feature_importance(models, rescoring_features, save_path=None, sort=Fal
         **kwargs: Additional plotting parameters such as 'figsize' and 'dpi'.
     """
     # Determine the model type based on the first model in the list.
-    if hasattr(models[0].estimator, 'coef_'):
-        model_type = 'linear'
-    elif hasattr(models[0].estimator, 'feature_importances_'):
-        model_type = 'xgb'
+    if hasattr(models[0].estimator, "coef_"):
+        model_type = "linear"
+    elif hasattr(models[0].estimator, "feature_importances_"):
+        model_type = "xgb"
     else:
-        raise ValueError("Model type not recognized. Model must have 'estimator.coef_' for linear models or "
-                         "'estimator.feature_importances_' for XGBoost models.")
-    
-    if model_type == 'linear':
+        raise ValueError(
+            "Model type not recognized. Model must have 'estimator.coef_' for linear models or "
+            "'estimator.feature_importances_' for XGBoost models."
+        )
+
+    if model_type == "linear":
         feature_importances = []
         for model in models:
             coefficients = model.estimator.coef_
             feature_importances.append(np.abs(coefficients).mean(axis=0))
             logger.debug(f"Model coefficients shape: {coefficients.shape}")
-        
+
         average_feature_importance = np.mean(feature_importances, axis=0)
         std_feature_importance = np.std(feature_importances, axis=0)
-        feature_signs = np.mean([model.estimator.coef_.mean(axis=0) for model in models], axis=0)
-    
-    elif model_type == 'xgb':
+        feature_signs = np.mean(
+            [model.estimator.coef_.mean(axis=0) for model in models], axis=0
+        )
+
+    elif model_type == "xgb":
         feature_importances = []
         for model in models:
             # Use the XGBoost feature importances directly as they are always positive
             imp = model.estimator.feature_importances_
             feature_importances.append(imp)
             logger.debug(f"Model feature importances shape: {imp.shape}")
-        
+
         average_feature_importance = np.mean(feature_importances, axis=0)
         std_feature_importance = np.std(feature_importances, axis=0)
         feature_signs = np.ones_like(average_feature_importance)
-    
-    logger.debug(f"Total rescoring features: {len(sum(rescoring_features.values(), []))}")
-    logger.debug(f"Average feature importance length: {len(average_feature_importance)}")
+
+    logger.debug(
+        f"Total rescoring features: {len(sum(rescoring_features.values(), []))}"
+    )
+    logger.debug(
+        f"Average feature importance length: {len(average_feature_importance)}"
+    )
     logger.debug(f"Features: {sum(rescoring_features.values(), [])}")
-    
-    figsize = kwargs.get('figsize', (15, 10))
-    dpi = kwargs.get('dpi', 300)
-    
+
+    figsize = kwargs.get("figsize", (15, 10))
+    dpi = kwargs.get("dpi", 300)
+
     all_features = []
     all_importances = []
     all_errors = []
     all_colors = []
     all_hatches = []  # Hatch patterns will be applied only for linear models.
-    
+
     color_cycle = cycle(plt.cm.tab10.colors)
-    
+
     for source, features in rescoring_features.items():
         color = next(color_cycle)
-        indices = [i for i, name in enumerate(sum(rescoring_features.values(), [])) if name in features]
+        indices = [
+            i
+            for i, name in enumerate(sum(rescoring_features.values(), []))
+            if name in features
+        ]
         source_importances = average_feature_importance[indices]
         source_std = std_feature_importance[indices]
-        
-        if model_type == 'linear':
+
+        if model_type == "linear":
             source_signs = feature_signs[indices]
-        
+
         if sort:
             sorted_indices = np.argsort(-source_importances)
         else:
             sorted_indices = np.arange(len(features))
-        
+
         sorted_features = [features[i] for i in sorted_indices]
         sorted_importances = source_importances[sorted_indices]
         sorted_std = source_std[sorted_indices]
-        
+
         all_features.extend(sorted_features)
         all_importances.extend(sorted_importances)
         all_errors.extend(sorted_std)
         all_colors.extend([color] * len(sorted_features))
-        
-        if model_type == 'linear':
+
+        if model_type == "linear":
             # For linear models, use hatch patterns to differentiate positive and negative coefficients.
             # An empty hatch ('') for positive and '\\' for negative coefficients.
             sorted_signs = source_signs[sorted_indices]
-            all_hatches.extend(['' if sign >= 0 else '\\\\' for sign in sorted_signs])
+            all_hatches.extend(["" if sign >= 0 else "\\\\" for sign in sorted_signs])
         else:
-            all_hatches.extend([''] * len(sorted_features))
-    
+            all_hatches.extend([""] * len(sorted_features))
+
     fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
     if error:
-        bars = ax.barh(all_features, all_importances, xerr=all_errors, color=all_colors, capsize=5)
+        bars = ax.barh(
+            all_features, all_importances, xerr=all_errors, color=all_colors, capsize=5
+        )
     else:
         bars = ax.barh(all_features, all_importances, color=all_colors)
-    
-    if model_type == 'linear':
+
+    if model_type == "linear":
         for bar, hatch in zip(bars, all_hatches):
             bar.set_hatch(hatch)
         legend_hatches = [
-            Patch(facecolor='white', edgecolor='black', hatch='', label='Positive'),
-            Patch(facecolor='white', edgecolor='black', hatch='\\\\', label='Negative')
+            Patch(facecolor="white", edgecolor="black", hatch="", label="Positive"),
+            Patch(facecolor="white", edgecolor="black", hatch="\\\\", label="Negative"),
         ]
-        legend_colors = [Patch(facecolor=color, edgecolor='black', label=source)
-                         for color, source in zip(plt.cm.tab10.colors, rescoring_features.keys())]
-        ax.legend(handles=legend_hatches + legend_colors, loc='best')
+        legend_colors = [
+            Patch(facecolor=color, edgecolor="black", label=source)
+            for color, source in zip(plt.cm.tab10.colors, rescoring_features.keys())
+        ]
+        ax.legend(handles=legend_hatches + legend_colors, loc="best")
     else:
-        legend_colors = [Patch(facecolor=color, edgecolor='black', label=source)
-                         for color, source in zip(plt.cm.tab10.colors, rescoring_features.keys())]
-        ax.legend(handles=legend_colors, loc='best')
-    
-    ax.set_xlabel('Average Feature Importance')
-    ax.set_ylabel('Feature')
-    
+        legend_colors = [
+            Patch(facecolor=color, edgecolor="black", label=source)
+            for color, source in zip(plt.cm.tab10.colors, rescoring_features.keys())
+        ]
+        ax.legend(handles=legend_colors, loc="best")
+
+    ax.set_xlabel("Average Feature Importance")
+    ax.set_ylabel("Feature")
+
     save_or_show_plot(save_path, logger)
+
 
 def visualize_feature_correlation(psms: PsmContainer, save_path=None, **kwargs):
     """
@@ -145,14 +167,16 @@ def visualize_feature_correlation(psms: PsmContainer, save_path=None, **kwargs):
         save_path (str, optional): The file path to save the plot. If not provided, the plot is displayed.
         **kwargs: Additional plotting parameters such as `figsize` and `dpi`, etc.
     """
-    figsize = kwargs.get('figsize', (40, 36))
-    dpi = kwargs.get('dpi', 300)
-    
-    rescoring_features = [item for sublist in psms.rescoring_features.values() for item in sublist]
+    figsize = kwargs.get("figsize", (40, 36))
+    dpi = kwargs.get("dpi", 300)
+
+    rescoring_features = [
+        item for sublist in psms.rescoring_features.values() for item in sublist
+    ]
     fig, ax = plt.subplots(figsize=figsize, dpi=dpi)
     corr = psms.psms[rescoring_features].corr()
     # sns.heatmap(corr, annot=True, fmt=".2f", cmap='coolwarm', ax=ax)
-    sns.heatmap(corr, cmap='coolwarm', ax=ax)
+    sns.heatmap(corr, cmap="coolwarm", ax=ax)
     ax.set_title("Feature Correlation Heatmap")
-    
+
     save_or_show_plot(save_path, logger)

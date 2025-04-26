@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 
 def rescore(
     psms: PsmContainer,
-    model = None,
+    model=None,
     rescoring_features: List[str] = None,
     test_fdr: float = 0.01,
-    **kwargs
+    **kwargs,
 ):
     """
     Rescore PSMs using mokapot.
@@ -25,16 +25,16 @@ def rescore(
         rescoring_features (List[str]): A list of feature names to use for rescoring.
         test_fdr (float): The FDR threshold for testing the model.
         **kwargs: Additional keyword arguments for mokapot.brew.
-    
+
     Returns:
         tuple:
-            - Confidence object or list of Confidence objects: 
-              An object or a list of objects containing the confidence estimates at various levels 
-              (i.e. PSMs, peptides) when assessed using the learned score. If a list, they will be 
+            - Confidence object or list of Confidence objects:
+              An object or a list of objects containing the confidence estimates at various levels
+              (i.e. PSMs, peptides) when assessed using the learned score. If a list, they will be
               in the same order as provided in the psms parameter.
-            - list of Model objects: 
+            - list of Model objects:
               The learned Model objects, one for each fold.
-        
+
     """
     psms = convert_to_mokapot_dataset(psms, rescoring_features=rescoring_features)
     logger.info("Rescoring PSMs with mokapot.")
@@ -42,7 +42,9 @@ def rescore(
     return results, models
 
 
-def convert_to_mokapot_dataset(psms: PsmContainer, rescoring_features: List[str] = None) -> LinearPsmDataset:
+def convert_to_mokapot_dataset(
+    psms: PsmContainer, rescoring_features: List[str] = None
+) -> LinearPsmDataset:
     """
     Convert a PsmContainer to a LinearPsmDataset for use with mokapot.
 
@@ -52,9 +54,11 @@ def convert_to_mokapot_dataset(psms: PsmContainer, rescoring_features: List[str]
     Returns:
         LinearPsmDataset: A LinearPsmDataset object for use with mokapot.
     """
-    
+
     # rescoring_features: Dict[str, List[str]] -> Tuple[str]
-    feature_columns = [col for features in psms.rescoring_features.values() for col in features]
+    feature_columns = [
+        col for features in psms.rescoring_features.values() for col in features
+    ]
 
     if rescoring_features is None:
         rescoring_features = feature_columns
@@ -71,8 +75,7 @@ def convert_to_mokapot_dataset(psms: PsmContainer, rescoring_features: List[str]
         protein_column=psms.protein_column,
         feature_columns=rescoring_features,
         scan_column=psms.scan_column,
-        rt_column=psms.retention_time_column
+        rt_column=psms.retention_time_column,
     )
 
     return dataset
-

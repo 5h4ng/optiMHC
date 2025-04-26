@@ -1,5 +1,6 @@
 import logging
 
+
 def setup_loggers(log_file=None):
     """
     Create or update all loggers so that each logger has a StreamHandler and optionally a FileHandler.
@@ -11,30 +12,39 @@ def setup_loggers(log_file=None):
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
     for lg in loggers:
         lg.disabled = False
-        has_stream_handler = any(isinstance(handler, logging.StreamHandler) for handler in lg.handlers)
+        has_stream_handler = any(
+            isinstance(handler, logging.StreamHandler) for handler in lg.handlers
+        )
         if not has_stream_handler:
             console_handler = logging.StreamHandler()
             console_handler.setLevel(logging.INFO)
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            formatter = logging.Formatter(
+                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            )
             console_handler.setFormatter(formatter)
             lg.addHandler(console_handler)
 
         if log_file:
-            has_file_handler = any(isinstance(handler, logging.FileHandler) for handler in lg.handlers)
+            has_file_handler = any(
+                isinstance(handler, logging.FileHandler) for handler in lg.handlers
+            )
             if not has_file_handler:
-                file_handler = logging.FileHandler(log_file, mode='a')
+                file_handler = logging.FileHandler(log_file, mode="a")
                 file_handler.setLevel(logging.INFO)
-                formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+                formatter = logging.Formatter(
+                    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+                )
                 file_handler.setFormatter(formatter)
                 lg.addHandler(file_handler)
 
         lg.propagate = False
 
-        if lg.name.startswith('optimhc'):
+        if lg.name.startswith("optimhc"):
             lg.disabled = False
 
     root_logger = logging.getLogger()
     root_logger.disabled = False
+
 
 def debug_logging():
     """
@@ -42,12 +52,18 @@ def debug_logging():
     the root logger. This helps verify that logger configurations are set properly.
     """
     print("\n=== Debugging Loggers ===\n")
-    loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict.keys()]
+    loggers = [
+        logging.getLogger(name) for name in logging.root.manager.loggerDict.keys()
+    ]
     for lg in loggers:
         if lg.name.startswith("optimhc"):
             print(f"Logger Name: {lg.name}")
-            print(f"  - Effective Level: {logging.getLevelName(lg.getEffectiveLevel())}")
-            print(f"  - Explicit Level: {logging.getLevelName(lg.level)} (default: NOTSET)")
+            print(
+                f"  - Effective Level: {logging.getLevelName(lg.getEffectiveLevel())}"
+            )
+            print(
+                f"  - Explicit Level: {logging.getLevelName(lg.level)} (default: NOTSET)"
+            )
             print(f"  - Propagate: {lg.propagate}")
             print(f"  - Disabled: {lg.disabled}")
 

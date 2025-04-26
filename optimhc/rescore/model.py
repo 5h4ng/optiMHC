@@ -24,13 +24,13 @@ GRID_RF = {
 class XGBoostPercolatorModel(Model):
     def __init__(
         self,
-        scaler=None, 
+        scaler=None,
         train_fdr=0.01,
         max_iter=10,
         direction=None,
         override=False,
         n_jobs=1,
-        rng=None
+        rng=None,
     ):
         self.n_jobs = n_jobs
         rng_instance = np.random.default_rng(rng)
@@ -41,7 +41,7 @@ class XGBoostPercolatorModel(Model):
             refit=False,
             cv=KFold(3, shuffle=True, random_state=rng_instance.integers(1, 1e6)),
             n_jobs=n_jobs,
-            scoring="roc_auc"
+            scoring="roc_auc",
         )
         super().__init__(
             estimator=estimator,
@@ -50,19 +50,20 @@ class XGBoostPercolatorModel(Model):
             max_iter=max_iter,
             direction=direction,
             override=override,
-            rng=rng
+            rng=rng,
         )
+
 
 class RandomForestPercolatorModel(Model):
     def __init__(
         self,
-        scaler=None, 
+        scaler=None,
         train_fdr=0.01,
         max_iter=10,
         direction=None,
         override=False,
         n_jobs=1,
-        rng=None
+        rng=None,
     ):
         self.n_jobs = n_jobs
         rng_instance = np.random.default_rng(rng)
@@ -72,7 +73,7 @@ class RandomForestPercolatorModel(Model):
             refit=False,
             cv=KFold(3, shuffle=True, random_state=rng_instance.integers(1, 1e6)),
             n_jobs=n_jobs,
-            scoring="roc_auc"
+            scoring="roc_auc",
         )
         super().__init__(
             estimator=estimator,
@@ -81,5 +82,5 @@ class RandomForestPercolatorModel(Model):
             max_iter=max_iter,
             direction=direction,
             override=override,
-            rng=rng
+            rng=rng,
         )

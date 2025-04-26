@@ -8,22 +8,20 @@ from optimhc.psm_container import PsmContainer
 
 logger = logging.getLogger(__name__)
 
-def read_pepxml(
-    pepxml_files,
-    decoy_prefix="DECOY_"
-):
-    '''
+
+def read_pepxml(pepxml_files, decoy_prefix="DECOY_"):
+    """
     Read PSMs from a list of PepXML files.
 
     Parameters:
-        pepxml_files (Union[str, List[str]]): The file path to the PepXML file 
+        pepxml_files (Union[str, List[str]]): The file path to the PepXML file
             or a list of file paths.
-        decoy_prefix (str): The prefix used to indicate a decoy protein in the 
+        decoy_prefix (str): The prefix used to indicate a decoy protein in the
             description lines of the FASTA file.
 
     Returns:
         PsmContainer: A PsmContainer object containing the PSM data.
-    ''' 
+    """
     proton = 1.00727646677
     if isinstance(pepxml_files, str):
         pepxml_files = [pepxml_files]
@@ -52,16 +50,14 @@ def read_pepxml(
     # Calculate matched ions and complementary ions
     if "num_matched_ions" in psms.columns and "tot_num_ions" in psms.columns:
         if (psms["tot_num_ions"] != 0).all():
-            psms["matched_ions_ratio"] = psms["num_matched_ions"]/psms["tot_num_ions"]
+            psms["matched_ions_ratio"] = psms["num_matched_ions"] / psms["tot_num_ions"]
 
     # Log number of candidates:
     if "num_matched_peptides" in psms.columns:
         psms["num_matched_peptides"] = np.log10(psms["num_matched_peptides"])
 
     # Create charge columns:
-    psms = pd.concat(
-        [psms, pd.get_dummies(psms["charge"], prefix="charge")], axis=1
-    )
+    psms = pd.concat([psms, pd.get_dummies(psms["charge"], prefix="charge")], axis=1)
 
     # psms = psms.drop("charge", axis=1)
     # -log10 p-values
@@ -92,15 +88,16 @@ def read_pepxml(
         charge_column="charge",
         rescoring_features=rescoring_features,
         hit_rank_column="rank",
-        retention_time_column="retention_time"
+        retention_time_column="retention_time",
     )
 
 
-'''
+"""
 This code is adapted from 'Mokapot'
 Source: https://github.com/wfondrie/mokapot
 License: Apache License 2.0
-'''
+"""
+
 
 def _parse_pepxml(pepxml_file, decoy_prefix):
     """Parse the PSMs of a PepXML into a DataFrame
@@ -128,9 +125,7 @@ def _parse_pepxml(pepxml_file, decoy_prefix):
         df = pd.DataFrame.from_records(itertools.chain.from_iterable(psms))
         df["ms_data_file"] = df["ms_data_file"].astype("category")
     except etree.XMLSyntaxError:
-        raise ValueError(
-            f"{pepxml_file} is not a PepXML file or is malformed."
-        )
+        raise ValueError(f"{pepxml_file} is not a PepXML file or is malformed.")
     return df
 
 
@@ -185,7 +180,7 @@ def _parse_spectrum(spectrum, run_info, decoy_prefix):
         A dictionary describing all of the PSMs for a spectrum.
     """
     spec_info = run_info.copy()
-    spec_info['spectrum'] = str(spectrum.get("spectrum"))
+    spec_info["spectrum"] = str(spectrum.get("spectrum"))
     spec_info["scan"] = int(spectrum.get("end_scan"))
     spec_info["charge"] = int(spectrum.get("assumed_charge"))
     spec_info["retention_time"] = float(spectrum.get("retention_time_sec"))
@@ -218,7 +213,7 @@ def _parse_psm(psm_info, spec_info, decoy_prefix):
     psm["peptide"] = psm_info.get("peptide")
     psm["proteins"] = [psm_info.get("protein").split(" ")[0]]
     psm["label"] = not psm["proteins"][0].startswith(decoy_prefix)
-    psm['rank'] = int(psm_info.get("hit_rank"))
+    psm["rank"] = int(psm_info.get("hit_rank"))
 
     # Begin features:
     try:

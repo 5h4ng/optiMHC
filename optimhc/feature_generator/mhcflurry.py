@@ -3,7 +3,7 @@ import pandas as pd
 from mhcflurry import Class1PresentationPredictor
 from typing import List, Dict
 from optimhc import utils
-import logging            
+import logging
 from tqdm import tqdm
 from typing import Optional, List, Dict, Union
 
@@ -22,41 +22,41 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
         remove_pre_nxt_aa (bool): Whether to include the previous and next amino acids in peptides.
             If True, remove them. Default is True.
         remove_modification (bool): Whether to include modifications in peptides.
-            If True, remove them. Default is True.    
+            If True, remove them. Default is True.
     """
 
     MIN_PEPTIDE_LENGTH = 8
     MAX_PEPTIDE_LENGTH = 15
 
     def __init__(
-            self, 
-            peptides: List[str], 
-            alleles: List[str], 
-            remove_pre_nxt_aa: bool = False,
-            remove_modification: bool = True,
-            *args,
-            **kwargs
-    ): 
+        self,
+        peptides: List[str],
+        alleles: List[str],
+        remove_pre_nxt_aa: bool = False,
+        remove_modification: bool = True,
+        *args,
+        **kwargs,
+    ):
         self.peptides = peptides
-        self.alleles = alleles 
+        self.alleles = alleles
         self.remove_pre_nxt_aa = remove_pre_nxt_aa
         self.remove_modification = remove_modification
         self.predictor = Class1PresentationPredictor.load()
         self.predictions = None
         self._raw_predictions = None
-        logger.info(f"Initialized MHCflurryFeatureGenerator with {len(peptides)} peptides and alleles: {alleles}")
-
+        logger.info(
+            f"Initialized MHCflurryFeatureGenerator with {len(peptides)} peptides and alleles: {alleles}"
+        )
 
     @property
     def feature_columns(self) -> List[str]:
         """Returns the feature column names."""
         return [
-            'mhcflurry_affinity', 
-            'mhcflurry_processing_score', 
-            'mhcflurry_presentation_score', 
-            'mhcflurry_presentation_percentile'
+            "mhcflurry_affinity",
+            "mhcflurry_processing_score",
+            "mhcflurry_presentation_score",
+            "mhcflurry_presentation_percentile",
         ]
-
 
     @property
     def id_column(self) -> List[str]:
@@ -66,8 +66,7 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
         Returns:
             List[str]: List of input column names.
         """
-        return ['Peptide']
-    
+        return ["Peptide"]
 
     def _preprocess_peptides(self, peptide: str) -> str:
         if self.remove_pre_nxt_aa:
@@ -75,9 +74,8 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
         if self.remove_modification:
             peptide = utils.remove_modifications(peptide)
         # U -> C
-        peptide = peptide.replace('U', 'C')
+        peptide = peptide.replace("U", "C")
         return peptide
-    
 
     def _predict(self) -> pd.DataFrame:
         """
@@ -88,30 +86,37 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
         """
         if self.predictions is None:
             logger.info("Running MHCflurry predictions.")
-            self.predictions = pd.DataFrame(self.peptides, columns=['Peptide'])
-            self.predictions['clean_peptide'] = self.predictions['Peptide'].apply(self._preprocess_peptides)
+            self.predictions = pd.DataFrame(self.peptides, columns=["Peptide"])
+            self.predictions["clean_peptide"] = self.predictions["Peptide"].apply(
+                self._preprocess_peptides
+            )
             # filter out peptides with length between 8 and 15, which are the only lengths supported by MHCflurry
-            peptides_to_predict = self.predictions[self.predictions['clean_peptide'].apply(
-                lambda x: MHCflurryFeatureGenerator.MIN_PEPTIDE_LENGTH <= len(x) <= MHCflurryFeatureGenerator.MAX_PEPTIDE_LENGTH
-            )]
-            logger.info(f"Predicting MHCflurry scores for {len(peptides_to_predict)} peptides. The missing peptides will be filled with median values.")
+            peptides_to_predict = self.predictions[
+                self.predictions["clean_peptide"].apply(
+                    lambda x: MHCflurryFeatureGenerator.MIN_PEPTIDE_LENGTH
+                    <= len(x)
+                    <= MHCflurryFeatureGenerator.MAX_PEPTIDE_LENGTH
+                )
+            ]
+            logger.info(
+                f"Predicting MHCflurry scores for {len(peptides_to_predict)} peptides. The missing peptides will be filled with median values."
+            )
             mhcflurry_results = self.predictor.predict(
-                peptides=peptides_to_predict['clean_peptide'].unique().tolist(),
+                peptides=peptides_to_predict["clean_peptide"].unique().tolist(),
                 alleles=self.alleles,
-                verbose=0
+                verbose=0,
             )
             self._raw_predictions = mhcflurry_results.copy()
             self.predictions = self.predictions.merge(
                 mhcflurry_results,
-                left_on='clean_peptide',
-                right_on='peptide',
-                how='left'
+                left_on="clean_peptide",
+                right_on="peptide",
+                how="left",
             )
-            self.predictions.drop(columns=['clean_peptide', 'peptide'], inplace=True)
+            self.predictions.drop(columns=["clean_peptide", "peptide"], inplace=True)
         else:
             logger.info("MHCflurry predictions already exist. Skipping prediction.")
         return self.predictions
-
 
     @property
     def raw_predictions(self) -> pd.DataFrame:
@@ -124,7 +129,7 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
         if self._raw_predictions is None:
             self._predict()
         return self._raw_predictions
-    
+
     def get_raw_predictions(self) -> pd.DataFrame:
         """
         Get the raw prediction results DataFrame from MHCflurry.
@@ -133,7 +138,7 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
             pd.DataFrame: Raw prediction results DataFrame
         """
         return self.raw_predictions
-    
+
     def save_raw_predictions(self, file_path: str, **kwargs) -> None:
         """
         Save the raw prediction results to a file.
@@ -142,14 +147,13 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
             file_path (str): Path to save the file
             **kwargs: Other parameters passed to pandas.DataFrame.to_csv
         """
-        if 'index' not in kwargs:
-            kwargs['index'] = False
+        if "index" not in kwargs:
+            kwargs["index"] = False
         if self.raw_predictions is not None:
             self.raw_predictions.to_csv(file_path, **kwargs)
             logger.info(f"Raw prediction results saved to: {file_path}")
         else:
             logger.warning("No raw prediction results available to save.")
-
 
     def generate_features(self) -> pd.DataFrame:
         """
@@ -160,28 +164,52 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
         """
         self._predict()
         features_df = self.predictions.copy()
-        features_df.rename(columns={
-            'affinity': 'mhcflurry_affinity',
-            'processing_score': 'mhcflurry_processing_score',
-            'presentation_score': 'mhcflurry_presentation_score',
-            'presentation_percentile': 'mhcflurry_presentation_percentile'
-        }, inplace=True)
-        na_count = features_df['mhcflurry_affinity'].isna().sum()
+        features_df.rename(
+            columns={
+                "affinity": "mhcflurry_affinity",
+                "processing_score": "mhcflurry_processing_score",
+                "presentation_score": "mhcflurry_presentation_score",
+                "presentation_percentile": "mhcflurry_presentation_percentile",
+            },
+            inplace=True,
+        )
+        na_count = features_df["mhcflurry_affinity"].isna().sum()
         features_df.fillna(
             value={
-                'mhcflurry_affinity': features_df['mhcflurry_affinity'].median(),
-                'mhcflurry_processing_score': features_df['mhcflurry_processing_score'].median(),
-                'mhcflurry_presentation_score': features_df['mhcflurry_presentation_score'].median(),
-                'mhcflurry_presentation_percentile': features_df['mhcflurry_presentation_percentile'].median()
+                "mhcflurry_affinity": features_df["mhcflurry_affinity"].median(),
+                "mhcflurry_processing_score": features_df[
+                    "mhcflurry_processing_score"
+                ].median(),
+                "mhcflurry_presentation_score": features_df[
+                    "mhcflurry_presentation_score"
+                ].median(),
+                "mhcflurry_presentation_percentile": features_df[
+                    "mhcflurry_presentation_percentile"
+                ].median(),
             },
-            inplace=True
+            inplace=True,
         )
         logger.info(f"Generated MHCflurry features for {len(features_df)} peptides.")
-        features_df = features_df[['Peptide', 'mhcflurry_affinity', 'mhcflurry_processing_score', 'mhcflurry_presentation_score', 'mhcflurry_presentation_percentile']]
+        features_df = features_df[
+            [
+                "Peptide",
+                "mhcflurry_affinity",
+                "mhcflurry_processing_score",
+                "mhcflurry_presentation_score",
+                "mhcflurry_presentation_percentile",
+            ]
+        ]
         if features_df.isna().sum().sum() > 0:
             logger.warning("NaN values found in the generated features.")
-        return features_df[['Peptide', 'mhcflurry_affinity', 'mhcflurry_processing_score', 'mhcflurry_presentation_score', 'mhcflurry_presentation_percentile']]
-
+        return features_df[
+            [
+                "Peptide",
+                "mhcflurry_affinity",
+                "mhcflurry_processing_score",
+                "mhcflurry_presentation_score",
+                "mhcflurry_presentation_percentile",
+            ]
+        ]
 
     def get_best_allele(self) -> pd.DataFrame:
         """
@@ -190,13 +218,16 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
         Returns:
             pd.DataFrame: DataFrame containing the best alleles for the peptides.
         """
-        best_allele_df = self.predictions[['Peptide', 'best_allele']]
-        best_allele_df.rename(columns={'best_allele': 'mhcflurry_best_allele'}, inplace=True)
-        
-        logger.info(f"Generated best allele information for {len(best_allele_df)} peptides.")
+        best_allele_df = self.predictions[["Peptide", "best_allele"]]
+        best_allele_df.rename(
+            columns={"best_allele": "mhcflurry_best_allele"}, inplace=True
+        )
+
+        logger.info(
+            f"Generated best allele information for {len(best_allele_df)} peptides."
+        )
 
         return best_allele_df
-
 
     def predictions_to_dataframe(self) -> pd.DataFrame:
         """
@@ -206,5 +237,7 @@ class MHCflurryFeatureGenerator(BaseFeatureGenerator):
             pd.DataFrame: DataFrame containing the predictions.
         """
         if self.predictions is None:
-            raise ValueError("No predictions available. Please run 'generate_features' first.")
+            raise ValueError(
+                "No predictions available. Please run 'generate_features' first."
+            )
         return self.predictions
