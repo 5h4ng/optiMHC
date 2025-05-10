@@ -60,7 +60,6 @@ optimhc pipeline \
   --numProcesses 32 \
   --allele HLA-A*02:02 \
   --featureGenerator '{"name": "Basic"}' \
-  --featureGenerator '{"name": "DeepLC"}' \
   --testFDR 0.01 \
   --model Percolator
 ```
@@ -71,12 +70,20 @@ optimhc pipeline \
 
 The `--featureGenerator` option accepts JSON formatted strings that define the feature generator configuration. You can specify multiple feature generators by using the option multiple times. Here are some examples:
 
-1. Basic feature generator (no parameters):
+
+<details>
+<summary>Basic feature generator (no parameters)</summary>
+
 ```bash
 --featureGenerator '{"name": "Basic"}'
 ```
 
-2. SpectraSimilarity with parameters:
+</details>
+
+
+<details>
+<summary>SpectraSimilarity with parameters</summary>
+
 ```bash
 --featureGenerator '{
   "name": "SpectraSimilarity",
@@ -93,7 +100,12 @@ The `--featureGenerator` option accepts JSON formatted strings that define the f
 }'
 ```
 
-3. Multiple feature generators:
+</details>
+
+
+<details>
+<summary>Multiple feature generators</summary>
+
 ```bash
 --featureGenerator '{"name": "Basic"}' \
 --featureGenerator '{
@@ -113,8 +125,11 @@ The `--featureGenerator` option accepts JSON formatted strings that define the f
 }'
 ```
 
+</details>
+
+
 <details>
-<summary>Click to expand JSON format tips</summary>
+<summary>Some tips for JSON format</summary>
 
 - Use single quotes (`'`) to wrap the entire JSON string
 - All JSON strings must be valid JSON format (e.g., use `true` instead of `True`, `false` instead of `False`)
