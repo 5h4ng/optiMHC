@@ -6,8 +6,10 @@ def setup_loggers(log_file=None):
     Create or update all loggers so that each logger has a StreamHandler and optionally a FileHandler.
     This ensures all log messages are displayed in the console and optionally saved to a file.
 
-    Parameters:
-        log_file (str): Path to the log file. If None, no file logging is set up.
+    Parameters
+    ----------
+    log_file : str, optional
+        Path to the log file. If None, no file logging is set up.
     """
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
     for lg in loggers:

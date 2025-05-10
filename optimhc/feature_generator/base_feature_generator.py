@@ -30,8 +30,5 @@ class BaseFeatureGenerator(ABC):
     def generate_features(self) -> pd.DataFrame:
         """
         Generates features.
-
-        Returns:
-            pd.DataFrame: DataFrame containing features.
         """
         pass

@@ -1,6 +1,5 @@
 # feature_generator/PWM.py
 
-# TODO: extract best allele for each peptide
 import os
 import pandas as pd
 import numpy as np
@@ -79,6 +78,53 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
     Generates PWM (Position Weight Matrix) features for peptides based on specified MHC alleles.
 
     This generator calculates PWM scores for each peptide against the provided MHC class I or II allele PWMs.
+
+    Parameters
+    ----------
+    peptides : list of str
+        Series of peptide sequences.
+    alleles : list of str
+        List of MHC allele names (e.g., ['HLA-A01:01', 'HLA-B07:02']).
+    anchors : int, optional
+        Number of anchor positions to consider for MHC class I. Default is 2.
+    mhc_class : str, optional
+        MHC class, either 'I' or 'II'. Default is 'I'.
+    pwm_path : str or os.PathLike, optional
+        Custom path to PWM files. Defaults to '../../data/PWMs'.
+    remove_pre_nxt_aa : bool, optional
+        Whether to include the previous and next amino acids in peptides.
+        If True, remove them. Default is False.
+    remove_modification : bool, optional
+        Whether to include modifications in peptides.
+        If True, remove them. Default is True.
+
+    Attributes
+    ----------
+    peptides : pd.Series
+        Series of peptide sequences.
+    alleles : list of str
+        List of MHC allele names.
+    mhc_class : str
+        MHC class ('I' or 'II').
+    pwm_path : str or os.PathLike
+        Path to PWM files.
+    pwms : dict
+        Dictionary of PWMs for each allele and mer length.
+    anchors : int
+        Number of anchor positions for MHC class I.
+    remove_pre_nxt_aa : bool
+        Whether to remove pre/post neighboring amino acids.
+    remove_modification : bool
+        Whether to remove modifications.
+
+    Notes
+    -----
+    For MHC class I:
+        - Generates 'PWM_Score_{allele}' and optionally 'Anchor_Score_{allele}' columns.
+    For MHC class II:
+        - Generates 'PWM_Score_{allele}' (core 9-mer),
+        - 'N_Flank_PWM_Score_{allele}',
+        - 'C_Flank_PWM_Score_{allele}' columns.
     """
 
     CLASS_II_CORE_LENGTH = 9
@@ -105,7 +151,7 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
             mhc_class (str): MHC class, either 'I' or 'II'. Default is 'I'.
             pwm_path (Optional[Union[str, os.PathLike]]): Custom path to PWM files. Defaults to '../../data/PWMs'.
             remove_pre_nxt_aa (bool): Whether to include the previous and next amino acids in peptides.
-                If True, remove them. Default is True.
+                If True, remove them. Default is False.
             remove_modification (bool): Whether to include modifications in peptides.
                 If True, remove them. Default is True.
         """
@@ -120,7 +166,6 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
             self._load_pwms()
         )  # Dict[allele, Dict[mer, pd.DataFrame]]
 
-        # logger all the pwms
         for allele, pwms in self.pwms.items():
             for mer, pwm in pwms.items():
                 logger.debug(
@@ -143,18 +188,37 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
     @property
     def id_column(self) -> List[str]:
         """
-        Returns a list of input columns required for the feature generator.
+        Get a list of input columns required for the feature generator.
+
+        Returns
+        -------
+        list of str
+            List of column names required for feature generation.
         """
         return ["Peptide"]
 
     def _extract_trailing_numbers(self, text: str) -> str:
         """
-        Extracts the trailing numbers from a string.
+        Extract the trailing numbers from a string.
 
-        Examples:
-            - 'ABC123' -> '123'
-            - 'ABC' -> None
-            - 'L123' -> '123'
+        Parameters
+        ----------
+        text : str
+            Input string to extract numbers from.
+
+        Returns
+        -------
+        str or None
+            The trailing numbers if found, None otherwise.
+
+        Examples
+        --------
+        >>> _extract_trailing_numbers('ABC123')
+        '123'
+        >>> _extract_trailing_numbers('ABC')
+        None
+        >>> _extract_trailing_numbers('L123')
+        '123'
         """
         import re
 
@@ -163,7 +227,21 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
 
     def _default_allele_pwm_files(self) -> Dict[str, Dict[int, str]]:
         """
-        Constructs default PWM file paths for each allele based on MHC class.
+        Construct default PWM file paths for each allele based on MHC class.
+
+        Returns
+        -------
+        dict of str to dict of int to str
+            Dictionary mapping alleles to their PWM files for each mer length.
+            Format: {allele: {mer_length: file_path}}
+
+        Notes
+        -----
+        For MHC class I:
+            - Allele directory format: HLA-A01:01 -> HLA-A01_01
+        For MHC class II:
+            - Allele directory format: DRB10101 -> DRB1_0101
+            - Fixed core length of 9
         """
         class_path = os.path.join(self.pwm_path, self.mhc_class)
         pwm_files = {}
@@ -181,7 +259,7 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
             logger.info(
                 f"Searching for PWM files for allele {allele} in {allele_dir_path}"
             )
-            logger.info(f"Found PWM files for allele {allele}: {pwm_files_list}")
+            logger.debug(f"Found PWM files for allele {allele}: {pwm_files_list}")
             if self.mhc_class == "I":
                 for pwm_file in pwm_files_list:
                     # assume the trailing numbers in the file name indicate the mer length
@@ -209,13 +287,34 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
                         f"Expected 1 PWM file for allele {allele}, found {len(pwm_files_list)}: {pwm_files_list}"
                     )
 
-        logger.info(f"Default PWM file paths set for alleles: {self.alleles}")
+        logger.debug(f"Default PWM file paths set for alleles: {self.alleles}")
         return pwm_files
 
     def _most_conserved_postions(self, pwm: pd.DataFrame, n: int = 2) -> List[int]:
         """
-        Returns the n most conserved positions in the PWM.
+        Find the n most conserved positions in the PWM.
+
+        Parameters
+        ----------
+        pwm : pd.DataFrame
+            Position Weight Matrix to analyze.
+        n : int, optional
+            Number of positions to return. Default is 2.
+
+        Returns
+        -------
+        list of int
+            Indices of the n most conserved positions.
+
+        Raises
+        ------
+        ValueError
+            If n exceeds the PWM length.
+
+        Notes
+        -----
         In our study, we only use the anchor score for class I MHC.
+        Conservation is measured using Shannon entropy.
         """
         if n > pwm.shape[1]:
             raise ValueError(
@@ -227,7 +326,25 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
 
     def _load_pwms(self) -> Dict[str, Dict[int, pd.DataFrame]]:
         """
-        Loads PWMs for each allele from the constructed file paths.
+        Load PWMs for each allele from the constructed file paths.
+
+        Returns
+        -------
+        dict of str to dict of int to pd.DataFrame
+            Dictionary of PWMs for each allele and mer length.
+            Format: {allele: {mer_length: pwm_dataframe}}
+
+        Raises
+        ------
+        FileNotFoundError
+            If a PWM file is not found.
+        Exception
+            If there is an error loading a PWM file.
+
+        Notes
+        -----
+        PWM files are expected to be space-delimited text files with amino acids as row indices
+        and positions as column indices.
         """
         pwms = {}
         allele_pwm_files = self._default_allele_pwm_files()
@@ -239,11 +356,11 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
                     raise FileNotFoundError(f"PWM file not found: {file_path}")
                 try:
                     pwm = pd.read_csv(
-                        file_path, delim_whitespace=True, header=None, index_col=0
+                        file_path, sep='\s+', header=None, index_col=0
                     )
                     pwm.columns = [f"{pos+1}" for pos in range(pwm.shape[1])]
                     pwms[allele][mer] = pwm
-                    logger.info(
+                    logger.debug(
                         f"Loaded PWM for allele {allele}, length {mer} from {file_path}"
                     )
                 except Exception as e:
@@ -253,8 +370,23 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
 
     def _cal_PWM_score_I(self, peptide: str, allele: str) -> Optional[float]:
         """
-        Calculates PWM scores for MHC class I.
-        If length is out of range, return pd.NA.
+        Calculate PWM scores for MHC class I.
+
+        Parameters
+        ----------
+        peptide : str
+            The peptide sequence to score.
+        allele : str
+            The MHC allele to score against.
+
+        Returns
+        -------
+        float or None
+            PWM score for the peptide against the allele's PWM, or None if out of range.
+
+        Notes
+        -----
+        If peptide length is out of range, returns None.
         """
         peptide_len = len(peptide)
         min_mer = min(self.pwms[allele].keys())
@@ -278,17 +410,34 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
         self, peptide: str, allele: str
     ) -> Tuple[Optional[float], Optional[float], Optional[float]]:
         """
-        Calculates PWM scores for MHC class II using a sliding 9-mer window.
+        Calculate PWM scores for MHC class II using a sliding 9-mer window.
 
-        We:
-          1) Slide over all possible 9-mer windows to find the highest core PWM score.
-          2) Once the best core is found, extract up to 3 AA on each flank (N-flank and C-flank).
-          3) If the flank has fewer than 3 residues, pad with 'X'.
-          4) Score each flank with n_flank_pwm and c_flank_pwm and return all three scores.
+        Parameters
+        ----------
+        peptide : str
+            The peptide sequence to score.
+        allele : str
+            The MHC allele to score against.
 
-        Returns:
-            (core_score, n_flank_score, c_flank_score)
-            or (NaN, NaN, NaN) if peptide has length < 9.
+        Returns
+        -------
+        tuple of (float or None, float or None, float or None)
+            A tuple containing:
+            - core_score : float or None
+                Score for the best 9-mer core.
+            - n_flank_score : float or None
+                Score for the N-terminal flanking region.
+            - c_flank_score : float or None
+                Score for the C-terminal flanking region.
+            Returns (None, None, None) if peptide has length < 9.
+
+        Notes
+        -----
+        The method:
+        1. Slides over all possible 9-mer windows to find the highest core PWM score.
+        2. Once the best core is found, extracts up to 3 AA on each flank (N-flank and C-flank).
+        3. If the flank has fewer than 3 residues, pads with 'X'.
+        4. Scores each flank with n_flank_pwm and c_flank_pwm.
         """
         core_len = PWMFeatureGenerator.CLASS_II_CORE_LENGTH
         pwm = self.pwms[allele][core_len]
@@ -385,15 +534,25 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
         self, peptide: str, allele: str, anchor_dict: Dict[int, List[int]]
     ) -> Optional[float]:
         """
-        Calculate anchor score for a single peptide across all applicable mer lengths for a given allele and given positions.
+        Calculate anchor score for a single peptide across all applicable mer lengths for a given allele.
 
-        Parameters:
-            peptide (str): The peptide sequence.
-            allele (str): The MHC allele to score against.
-            anchor_dict (Dict[int, List[int]]): Dictionary containing the most conserved positions for each mer length.
+        Parameters
+        ----------
+        peptide : str
+            The peptide sequence to score.
+        allele : str
+            The MHC allele to score against.
+        anchor_dict : dict of int to list of int
+            Dictionary containing the most conserved positions for each mer length.
 
-        Returns:
-            Optional[float]: Anchor score for the peptide against the allele's PWM, or NaN if out of range.
+        Returns
+        -------
+        float or None
+            Anchor score for the peptide against the allele's PWM, or None if out of range.
+
+        Notes
+        -----
+        Only implemented for MHC class I. For MHC class II, returns None.
         """
         peptide_len = len(peptide)
         if self.mhc_class == "I":
@@ -421,21 +580,35 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
 
     def set_pwms(self, pwms: Dict[str, Dict[int, pd.DataFrame]]):
         """
-        Sets PWMs directly, allowing for custom PWMs to be provided.
+        Set PWMs directly, allowing for custom PWMs to be provided.
+
+        Parameters
+        ----------
+        pwms : dict of str to dict of int to pd.DataFrame
+            Dictionary of PWMs for each allele and mer length.
+            Format: {allele: {mer_length: pwm_dataframe}}
         """
         self.pwms = pwms
         logger.info(f"Set custom PWMs for alleles: {list(pwms.keys())}")
 
     def generate_features(self) -> pd.DataFrame:
         """
-        Generates PWM features for all peptides across specified alleles.
+        Generate PWM features for all peptides across specified alleles.
 
-        For MHC class I:
-            - 'PWM_Score_{allele}' and optionally 'Anchor_Score_{allele}' columns.
-        For MHC class II:
-            - 'PWM_Score_{allele}' (core 9-mer),
-            - 'N_Flank_PWM_Score_{allele}',
-            - 'C_Flank_PWM_Score_{allele}' columns.
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing generated features:
+            For MHC class I:
+                - 'PWM_Score_{allele}' and optionally 'Anchor_Score_{allele}' columns.
+            For MHC class II:
+                - 'PWM_Score_{allele}' (core 9-mer),
+                - 'N_Flank_PWM_Score_{allele}',
+                - 'C_Flank_PWM_Score_{allele}' columns.
+
+        Notes
+        -----
+        Missing values are imputed with the median value for each feature.
         """
         features_df = pd.DataFrame(self.peptides, columns=["Peptide"])
         features_df["clean_peptide"] = features_df["Peptide"]

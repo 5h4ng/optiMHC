@@ -1,53 +1,58 @@
+"""
+feature_generation.py
+
+Implements feature generation logic for optiMHC, supporting multiple feature generators
+(Basic, OverlappingPeptide, PWM, MHCflurry, NetMHCpan, NetMHCIIpan, DeepLC, SpectraSimilarity, etc.).
+"""
 import os
 import logging
 import re
 import gc
-from optimhc.feature_generator.overlapping_peptide import (
-    OverlappingPeptideFeatureGenerator,
-    assign_brother_aggregated_feature,
-)
-from optimhc.feature_generator.basic import BasicFeatureGenerator
-from optimhc.feature_generator.PWM import PWMFeatureGenerator
-from optimhc.feature_generator.mhcflurry import MHCflurryFeatureGenerator
+import psutil
+
+# The reason why we need to import the feature generators here is that 
+# the package 'mhctools' affect the logging configuration of optiMHC.
+# TODO: find a better way to handle this.
 from optimhc.feature_generator.netMHCpan import NetMHCpanFeatureGenerator
 from optimhc.feature_generator.netMHCIIpan import NetMHCIIpanFeatureGenerator
-from optimhc.feature_generator.DeepLC import DeepLCFeatureGenerator
-from optimhc.feature_generator.spectra_similarity import (
-    SpectraSimilarityFeatureGenerator,
-)
-import psutil, os
-
 
 logger = logging.getLogger(__name__)
 
 
 def print_memory(prefix=""):
+    """
+    Log the current process memory usage in megabytes (MB) at DEBUG level.
+
+    Parameters
+    ----------
+    prefix : str, optional
+        A prefix for the log message, by default an empty string.
+    """
     process = psutil.Process(os.getpid())
     mem = process.memory_info().rss / 1024 / 1024
-    logger.info(f"{prefix} Memory usage: {mem:.2f} MB")
-
-
-# TODO: Add dynamic import of feature generators
-# TODO: Add a function to save original outputs of feature generators
-# TODO: Tackle the memory bottleneck in the feature generation process
-
-
-def print_memory(prefix=""):
-    process = psutil.Process(os.getpid())
-    mem = process.memory_info().rss / 1024 / 1024
-    print(f"{prefix} Memory usage: {mem:.2f} MB")
+    logger.debug(f"{prefix} Memory usage: {mem:.2f} MB")
 
 
 def generate_features(psms, config):
     """
     Generate features from different generators according to the configuration.
 
-    Parameters:
-        psms (PsmContainer): A container object holding PSMs and relevant data.
-        config (dict): Configuration dictionary loaded from YAML.
+    Parameters
+    ----------
+    psms : PsmContainer
+        A container object holding PSMs and relevant data.
+    config : dict
+        Configuration dictionary loaded from YAML or CLI.
+
+    Returns
+    -------
+    None
+        Features are added in-place to the PsmContainer.
+
+    Examples
+    --------
+    >>> generate_features(psms, config)
     """
-    # Original config parameter to deal with modification
-    # Now remove_modification is set to True by default
     remove_modification = True
     remove_pre_nxt_aa = config["removePreNxtAA"]
     n_processes = config["numProcesses"]
@@ -57,7 +62,7 @@ def generate_features(psms, config):
     if mod_dict == {}:
         mod_dict = None
     feature_generators = config.get("featureGenerator", None)
-    allele = config["allele"]
+    allele = config.get("allele", None)
     unique_peptides = list(set(psms.peptides))
 
     if feature_generators is not None:
@@ -74,6 +79,10 @@ def generate_features(psms, config):
             print_memory(f"Before feature generator {generator_type}")
 
             if generator_type == "OverlappingPeptide":
+                from optimhc.feature_generator.overlapping_peptide import (
+                    OverlappingPeptideFeatureGenerator,
+                    assign_brother_aggregated_feature,
+                )
                 overlapping_peptide = OverlappingPeptideFeatureGenerator(
                     unique_peptides,
                     min_overlap_length=generator_params.get("minOverlapLength", 8),
@@ -110,6 +119,7 @@ def generate_features(psms, config):
                 gc.collect()
 
             elif generator_type == "Basic":
+                from optimhc.feature_generator.basic import BasicFeatureGenerator
                 basic_generator = BasicFeatureGenerator(
                     psms.psms[psms.peptide_column].tolist(),
                     remove_pre_nxt_aa=remove_pre_nxt_aa,
@@ -124,6 +134,7 @@ def generate_features(psms, config):
                 gc.collect()
 
             elif generator_type == "PWM":
+                from optimhc.feature_generator.PWM import PWMFeatureGenerator
                 pwm_generator = PWMFeatureGenerator(
                     unique_peptides,
                     alleles=allele,
@@ -143,6 +154,7 @@ def generate_features(psms, config):
                 gc.collect()
 
             elif generator_type == "MHCflurry":
+                from optimhc.feature_generator.mhcflurry import MHCflurryFeatureGenerator
                 mhcflurry_generator = MHCflurryFeatureGenerator(
                     unique_peptides,
                     alleles=allele,
@@ -161,6 +173,7 @@ def generate_features(psms, config):
                 gc.collect()
 
             elif generator_type == "NetMHCpan":
+                #from optimhc.feature_generator.netMHCpan import NetMHCpanFeatureGenerator
                 netmhcpan_generator = NetMHCpanFeatureGenerator(
                     unique_peptides,
                     alleles=allele,
@@ -182,6 +195,7 @@ def generate_features(psms, config):
                 gc.collect()
 
             elif generator_type == "NetMHCIIpan":
+                #from optimhc.feature_generator.netMHCIIpan import NetMHCIIpanFeatureGenerator
                 netmhciipan_generator = NetMHCIIpanFeatureGenerator(
                     unique_peptides,
                     alleles=allele,
@@ -203,6 +217,7 @@ def generate_features(psms, config):
                 gc.collect()
 
             elif generator_type == "DeepLC":
+                #from optimhc.feature_generator.DeepLC import DeepLCFeatureGenerator
                 deeplc_generator = DeepLCFeatureGenerator(
                     psms,
                     calibration_criteria_column=generator_params.get(
@@ -224,7 +239,7 @@ def generate_features(psms, config):
                 gc.collect()
 
             elif generator_type == "SpectraSimilarity":
-
+                from optimhc.feature_generator.spectra_similarity import SpectraSimilarityFeatureGenerator
                 # Match PSMs with the spectra
                 mzML_dir = generator_params.get("mzmlDir", None)
                 if mzML_dir is None:
@@ -339,8 +354,6 @@ def generate_features(psms, config):
                     feature_key=spectra_similarity_generator.id_column,
                     source="SpectraSimilarity",
                 )
-                print_memory(f"After feature generator {generator_type}")
-
                 del (
                     spectra_similarity_generator,
                     spectra_similarity_features,
@@ -350,6 +363,6 @@ def generate_features(psms, config):
                 gc.collect()
 
             else:
-                logger.warning(f"Unknown feature generator: {generator_type}")
+                logger.warning(f"Unknown feature generator: {generator_type}, skipping...")
 
             print_memory(f"After cleaning up {generator_type}")

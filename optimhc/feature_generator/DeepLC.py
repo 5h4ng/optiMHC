@@ -16,6 +16,46 @@ logging.getLogger("deeplc.feat_extractor").disabled = True
 
 
 class DeepLCFeatureGenerator(BaseFeatureGenerator):
+    """
+    Generate DeepLC-based features for rescoring.
+
+    This generator uses DeepLC to predict retention times and calculates various
+    features based on the differences between predicted and observed retention times.
+
+    Parameters
+    ----------
+    psms : PsmContainer
+        PSMs to generate features for.
+    calibration_criteria_column : str
+        Column name in the PSMs DataFrame to use for DeepLC calibration.
+    lower_score_is_better : bool, optional
+        Whether a lower PSM score denotes a better matching PSM. Default is False.
+    calibration_set_size : int or float, optional
+        Amount of best PSMs to use for DeepLC calibration. If this value is lower
+        than the number of available PSMs, all PSMs will be used. Default is 0.15.
+    processes : int, optional
+        Number of processes to use in DeepLC. Default is 1.
+    model_path : str, optional
+        Path to the DeepLC model. If None, the default model will be used.
+    remove_pre_nxt_aa : bool, optional
+        Whether to remove the first and last amino acids from the peptide sequence.
+        Default is True.
+    mod_dict : dict, optional
+        Dictionary of modifications to be used for DeepLC. If None, no modifications
+        will be used.
+
+    Notes
+    -----
+    DeepLC retraining is on by default. Add ``deeplc_retrain: False`` as a keyword
+    argument to disable retraining.
+
+    The generated features include:
+    - observed_retention_time: Original retention time from the data
+    - predicted_retention_time: DeepLC predicted retention time
+    - retention_time_diff: Difference between predicted and observed times
+    - abs_retention_time_diff: Absolute difference between predicted and observed times
+    - retention_time_ratio: Ratio of min(pred,obs) to max(pred,obs)
+    """
 
     def __init__(
         self,
@@ -90,10 +130,17 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
     @property
     def feature_columns(self) -> List[str]:
         """
-        Returns the feature column names.
+        Return the list of generated feature column names.
 
-        Returns:
-            List[str]: List of feature column names.
+        Returns
+        -------
+        List[str]
+            List of feature column names:
+            - observed_retention_time
+            - predicted_retention_time
+            - retention_time_diff
+            - abs_retention_time_diff
+            - retention_time_ratio
         """
         return [
             "observed_retention_time",
@@ -106,10 +153,14 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
     @property
     def id_column(self) -> List[str]:
         """
-        Returns the input columns required for the feature generator.
+        Return the list of input columns required for the feature generator.
 
-        Returns:
-            List[str]: List of input columns required for the feature generator.
+        Returns
+        -------
+        List[str]
+            List of input columns required for feature generation.
+            Currently returns an empty list as the required columns are
+            handled internally by the PsmContainer.
         """
         return [""]
 
@@ -117,8 +168,27 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         """
         Extract the format required by DeepLC, while retaining necessary original information.
 
-        Returns:
-            pd.DataFrame: DataFrame with the required DeepLC format and original information.
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with the required DeepLC format and original information:
+            - original_seq: Original peptide sequence
+            - label: Target/decoy label
+            - seq: Cleaned peptide sequence
+            - modifications: Unimod format modifications
+            - tr: Retention time
+            - score: Calibration criteria score
+
+        Raises
+        ------
+        ValueError
+            If retention time column is not found in the PSMs DataFrame.
+
+        Notes
+        -----
+        This method prepares the data in the format required by DeepLC,
+        including cleaning peptide sequences and converting modifications
+        to Unimod format.
         """
         df_deeplc = pd.DataFrame()
         df_psm = self.psms.psms
@@ -161,11 +231,27 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
 
     def generate_features(self) -> pd.DataFrame:
         """
-        Generates DeepLC features for the provided PSMs.
+        Generate DeepLC features for the provided PSMs.
 
-        Returns：
-            pd.DataFrame
-                DataFrame containing the PSMs with added DeepLC features.
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the PSMs with added DeepLC features:
+            - original_seq: Original peptide sequence
+            - observed_retention_time: Original retention time
+            - predicted_retention_time: DeepLC predicted retention time
+            - retention_time_diff: Difference between predicted and observed times
+            - abs_retention_time_diff: Absolute difference between predicted and observed times
+            - retention_time_ratio: Ratio of min(pred,obs) to max(pred,obs)
+
+        Notes
+        -----
+        This method:
+        1. Prepares data in DeepLC format
+        2. Calibrates DeepLC if calibration set is specified
+        3. Predicts retention times
+        4. Calculates various retention time-based features
+        5. Handles missing values by imputing with median values
         """
         logger.info("Generating DeepLC features.")
 
@@ -234,12 +320,29 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         """
         Get the best scoring PSMs for calibration based on the calibration criteria.
 
-        Parameters:
-            deeplc_df : pd.DataFrame
-                DataFrame containing DeepLC input data.
+        Parameters
+        ----------
+        deeplc_df : pd.DataFrame
+            DataFrame containing DeepLC input data.
 
-        Returns:
-            pd.DataFrame: DataFrame of PSMs selected for calibration.
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame of PSMs selected for calibration, containing only target PSMs.
+
+        Raises
+        ------
+        ValueError
+            If calibration_set_size is a float not between 0 and 1.
+        TypeError
+            If calibration_set_size is neither int nor float.
+
+        Notes
+        -----
+        This method:
+        1. Sorts PSMs based on calibration criteria
+        2. Selects top N PSMs based on calibration_set_size
+        3. Filters to keep only target PSMs
         """
         logger.debug("Selecting PSMs for calibration.")
 
@@ -280,9 +383,18 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         """
         Get the full DeepLC DataFrame.
 
-        Returns:
-            pd.DataFrame
-                DataFrame containing the DeepLC input data.
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the DeepLC input data with all columns:
+            - original_seq: Original peptide sequence
+            - label: Target/decoy label
+            - seq: Cleaned peptide sequence
+            - modifications: Unimod format modifications
+            - tr: Retention time
+            - score: Calibration criteria score
+            - predicted_retention_time: DeepLC predicted retention time
+            - retention_time_diff: Difference between predicted and observed times
         """
         return self.deeplc_df
 
@@ -291,10 +403,19 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         """
         Get the raw predictions DataFrame.
 
-        Returns:
-            pd.DataFrame
-                DataFrame containing the raw predictions.
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the raw predictions:
+            - peptide: Cleaned peptide sequence
+            - predicted_rt: DeepLC predicted retention time
+            - observed_rt: Original retention time
+            - modifications: Unimod format modifications
 
+        Notes
+        -----
+        If predictions haven't been generated yet, this will trigger
+        feature generation automatically.
         """
         if self._raw_predictions is None:
             self.generate_features()
@@ -304,9 +425,19 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         """
         Get the raw predictions DataFrame.
 
-        Returns:
-            pd.DataFrame
-                DataFrame containing the raw predictions.
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the raw predictions:
+            - peptide: Cleaned peptide sequence
+            - predicted_rt: DeepLC predicted retention time
+            - observed_rt: Original retention time
+            - modifications: Unimod format modifications
+
+        Notes
+        -----
+        This is a convenience method that returns the same data as the
+        raw_predictions property.
         """
         return self.raw_predictions
 
@@ -314,14 +445,27 @@ class DeepLCFeatureGenerator(BaseFeatureGenerator):
         """
         Save the raw prediction results to a file.
 
-        Parameters:
-            file_path (str): Path to save the file
-            **kwargs: Other parameters passed to pandas.DataFrame.to_csv
+        Parameters
+        ----------
+        file_path : str
+            Path to save the file.
+        **kwargs : dict
+            Additional parameters passed to pandas.DataFrame.to_csv.
+            If 'index' is not specified, it defaults to False.
+
+        Notes
+        -----
+        This method saves the raw predictions DataFrame to a CSV file.
+        The DataFrame includes:
+        - peptide: Cleaned peptide sequence
+        - predicted_rt: DeepLC predicted retention time
+        - observed_rt: Original retention time
+        - modifications: Unimod format modifications
         """
         if "index" not in kwargs:
             kwargs["index"] = False
         if self.raw_predictions is not None:
             self.raw_predictions.to_csv(file_path, **kwargs)
-            logger.info(f"")
+            logger.info(f"Raw predictions saved to {file_path}")
         else:
-            logger.warning("")
+            logger.warning("Raw predictions have not been generated yet.")

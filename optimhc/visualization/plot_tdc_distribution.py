@@ -14,11 +14,25 @@ def visualize_target_decoy_features(
     """
     Visualize the distribution of features in a DataFrame using kernel density estimation plots.
 
-    Parameters:
-        psms (PsmContainer): A PsmContainer object containing the features to visualize.
-        num_cols (int, optional): The number of columns in the plot grid. Defaults to 5.
-        save_path (str, optional): The file path to save the plot. If not provided, the plot is displayed.
-        **kwargs: Additional plotting parameters such as `figsize` and `dpi`, etc.
+    Parameters
+    ----------
+    psms : PsmContainer
+        A PsmContainer object containing the features to visualize.
+    num_cols : int, optional
+        The number of columns in the plot grid. Default is 5.
+    save_path : str, optional
+        The file path to save the plot. If not provided, the plot is displayed.
+    **kwargs : dict
+        Additional plotting parameters such as `figsize` and `dpi`, etc.
+
+    Notes
+    -----
+    This function:
+    1. Extracts rescoring features from the PsmContainer
+    2. Filters out features with only one unique value
+    3. Creates a grid of plots showing the distribution of each feature
+    4. Separates target and decoy PSMs in each plot
+    5. Uses kernel density estimation to show the distribution shape
     """
     rescoring_features = [
         item

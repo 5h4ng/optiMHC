@@ -14,8 +14,6 @@ from koinapy import Koina
 
 logger = logging.getLogger(__name__)
 
-# TODO: prosit does not support modification.
-
 
 class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
     """
@@ -132,13 +130,23 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
     def _preprocess_peptide(self, peptide: str) -> str:
         """
         Preprocess peptide sequence.
+
         As Prosit does not support non-standard amino acid 'U', we replace it with 'C'.
 
-        Parameters:
-            peptide (str): Original peptide sequence
+        Parameters
+        ----------
+        peptide : str
+            Original peptide sequence.
 
-        Returns:
-            str: Processed peptide sequence
+        Returns
+        -------
+        str
+            Processed peptide sequence.
+
+        Notes
+        -----
+        This is nonsense when it comes to spectral prediction, but we need to keep it
+        for compatibility with Koina. In the future, this should be prohibited at the input level.
         """
         processed_peptide = peptide
 
@@ -166,10 +174,18 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
 
     def _extract_experimental_spectra(self) -> pd.DataFrame:
         """
-        Extract experimental spectral data from mzML files
+        Extract experimental spectral data from mzML files.
 
-        Returns:
-            pd.DataFrame: DataFrame containing experimental spectral data
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing experimental spectral data.
+
+        Notes
+        -----
+        The method groups scan IDs by file path for efficiency and extracts
+        spectral data from each mzML file. The resulting DataFrame contains
+        m/z values, intensities, and associated metadata for each spectrum.
         """
         logger.info("Extracting experimental spectral data...")
 
@@ -204,14 +220,30 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self, processed_peptides: List[str], charges: List[int]
     ) -> pd.DataFrame:
         """
-        Use Koina to predict theoretical spectra
+        Use Koina to predict theoretical spectra.
 
-        Parameters:
-            processed_peptides (List[str]): List of preprocessed peptide sequences
-            charges (List[int]): List of charge states
+        Parameters
+        ----------
+        processed_peptides : list of str
+            List of preprocessed peptide sequences.
+        charges : list of int
+            List of charge states.
 
-        Returns:
-            pd.DataFrame: DataFrame containing predicted spectral data
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing predicted spectral data.
+
+        Raises
+        ------
+        Exception
+            If there is an error during Koina prediction.
+
+        Notes
+        -----
+        The method uses Koina to predict theoretical spectra for each peptide.
+        For AlphaPeptDeep_ms2_generic model, inputs are split into batches
+        grouped by peptide length for prediction.
         """
         logger.info(f"Predicting theoretical spectra using {self.model_type}...")
 
@@ -340,15 +372,22 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         annotation: Optional[List[str]] = None,
     ) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
         """
-        Sort spectrum (mz, intensity, and optionally annotation) by m/z values
+        Sort spectrum (m/z, intensity, and optionally annotation) by m/z values.
 
-        Parameters:
-            mz (List[float]): m/z values
-            intensity (List[float]): Intensity values
-            annotation (Optional[List[str]]): Fragment annotations
+        Parameters
+        ----------
+        mz : list of float
+            m/z values.
+        intensity : list of float
+            Intensity values.
+        annotation : list of str, optional
+            Fragment annotations.
 
-        Returns:
-            Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]: Sorted m/z, intensity, and annotation arrays
+        Returns
+        -------
+        tuple of (np.ndarray, np.ndarray, np.ndarray or None)
+            Sorted m/z, intensity, and annotation arrays.
+            If annotation is None, the third element will be None.
         """
         mz_array = np.array(mz)
         intensity_array = np.array(intensity)
@@ -505,21 +544,36 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         pred_annotation: Optional[List[str]] = None,
     ) -> Tuple[np.ndarray, np.ndarray, List[Tuple]]:
         """
-        Align experimental and predicted spectra
+        Align experimental and predicted spectra.
 
         This is a wrapper around _align_spectra_all_peaks and _get_top_peaks_vectors
         to maintain backward compatibility while using the improved algorithm.
 
-        Parameters:
-            exp_mz (List[float]): Experimental m/z values
-            exp_intensity (List[float]): Experimental intensity values
-            pred_mz (List[float]): Predicted m/z values
-            pred_intensity (List[float]): Predicted intensity values
-            pred_annotation (Optional[List[str]]): Predicted fragment annotations
+        Parameters
+        ----------
+        exp_mz : list of float
+            Experimental m/z values.
+        exp_intensity : list of float
+            Experimental intensity values.
+        pred_mz : list of float
+            Predicted m/z values.
+        pred_intensity : list of float
+            Predicted intensity values.
+        pred_annotation : list of str, optional
+            Predicted fragment annotations.
 
-        Returns:
-            Tuple[np.ndarray, np.ndarray, List[Tuple]]: Aligned experimental intensity vector,
-                predicted intensity vector, and matching index pairs (for top N peaks)
+        Returns
+        -------
+        tuple of (np.ndarray, np.ndarray, list of tuple)
+            - Aligned experimental intensity vector
+            - Predicted intensity vector
+            - Matching index pairs (for top N peaks)
+
+        Notes
+        -----
+        The method first aligns all peaks using _align_spectra_all_peaks, then
+        extracts the top N peaks using _get_top_peaks_vectors for compatibility
+        with existing code.
         """
         # First align all peaks
         all_exp_intensity, all_pred_intensity, all_matched_indices, additional_info = (
@@ -546,11 +600,19 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         """
         Normalize a vector using L2 normalization (unit vector).
 
-        Parameters:
-            vector (np.ndarray): Input vector to normalize.
+        Parameters
+        ----------
+        vector : np.ndarray
+            Input vector to normalize.
 
-        Returns:
-            np.ndarray: L2-normalized vector.
+        Returns
+        -------
+        np.ndarray
+            L2-normalized vector.
+
+        Notes
+        -----
+        If the input vector has zero norm, the original vector is returned unchanged.
         """
         norm = np.linalg.norm(vector)  # Calculate the L2 norm (Euclidean norm)
         if norm == 0:
@@ -559,13 +621,21 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
 
     def _normalize_vector_sum(self, vector: np.ndarray) -> np.ndarray:
         """
-        Perform sum normalization (probability normalization) on a vector
+        Perform sum normalization (probability normalization) on a vector.
 
-        Parameters:
-            vector (np.ndarray): Input vector
+        Parameters
+        ----------
+        vector : np.ndarray
+            Input vector.
 
-        Returns:
-            np.ndarray: Sum normalized vector (sum to 1)
+        Returns
+        -------
+        np.ndarray
+            Sum normalized vector (sum to 1).
+
+        Notes
+        -----
+        If the input vector has zero sum, the original vector is returned unchanged.
         """
         total = np.sum(vector)
         if total > 0:
@@ -577,14 +647,25 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
     ) -> float:
         """
         Calculate the spectral angle between experimental and predicted vectors.
+
         Normalize the angle to [0, 1] where 1 is the best similarity.
 
-        Parameters:
-            exp_vector (np.ndarray): Experimental intensity vector
-            pred_vector (np.ndarray): Predicted intensity vector
+        Parameters
+        ----------
+        exp_vector : np.ndarray
+            Experimental intensity vector.
+        pred_vector : np.ndarray
+            Predicted intensity vector.
 
-        Returns:
-            float: Spectral angle similarity (0-1, higher is better)
+        Returns
+        -------
+        float
+            Spectral angle similarity (0-1, higher is better).
+
+        Notes
+        -----
+        The spectral angle is calculated as: SA = 1 - (2 * angle / π),
+        where angle is the angle between the normalized vectors in radians.
         """
         exp_norm = self._normalize_vector_l2(exp_vector)
         pred_norm = self._normalize_vector_l2(pred_vector)
@@ -601,14 +682,24 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self, exp_vector: np.ndarray, pred_vector: np.ndarray
     ) -> float:
         """
-        Calculate the cosine similarity between experimental and predicted vectors
+        Calculate the cosine similarity between experimental and predicted vectors.
 
-        Parameters:
-            exp_vector (np.ndarray): Experimental intensity vector
-            pred_vector (np.ndarray): Predicted intensity vector
+        Parameters
+        ----------
+        exp_vector : np.ndarray
+            Experimental intensity vector.
+        pred_vector : np.ndarray
+            Predicted intensity vector.
 
-        Returns:
-            float: Cosine similarity (0-1, higher is better)
+        Returns
+        -------
+        float
+            Cosine similarity (0-1, higher is better).
+
+        Notes
+        -----
+        The cosine similarity is calculated as 1 - cosine_distance.
+        If either vector has zero sum, returns 0.0.
         """
         if np.sum(exp_vector) == 0 or np.sum(pred_vector) == 0:
             return 0.0
@@ -624,14 +715,23 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self, exp_vector: np.ndarray, pred_vector: np.ndarray
     ) -> float:
         """
-        Calculate Spearman correlation coefficient between experimental and predicted vectors
+        Calculate Spearman correlation coefficient between experimental and predicted vectors.
 
-        Parameters:
-            exp_vector (np.ndarray): Experimental intensity vector
-            pred_vector (np.ndarray): Predicted intensity vector
+        Parameters
+        ----------
+        exp_vector : np.ndarray
+            Experimental intensity vector.
+        pred_vector : np.ndarray
+            Predicted intensity vector.
 
-        Returns:
-            float: Spearman correlation coefficient (-1 to 1, higher is better)
+        Returns
+        -------
+        float
+            Spearman correlation coefficient (-1 to 1, higher is better).
+
+        Notes
+        -----
+        If either vector has no variation (std = 0), returns 0.0.
         """
         # Handle vectors with no variation
         if np.std(exp_vector) == 0 or np.std(pred_vector) == 0:
@@ -647,14 +747,23 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self, exp_vector: np.ndarray, pred_vector: np.ndarray
     ) -> float:
         """
-        Calculate Pearson correlation coefficient between experimental and predicted vectors
+        Calculate Pearson correlation coefficient between experimental and predicted vectors.
 
-        Parameters:
-            exp_vector (np.ndarray): Experimental intensity vector
-            pred_vector (np.ndarray): Predicted intensity vector
+        Parameters
+        ----------
+        exp_vector : np.ndarray
+            Experimental intensity vector.
+        pred_vector : np.ndarray
+            Predicted intensity vector.
 
-        Returns:
-            float: Pearson correlation coefficient (-1 to 1, higher is better)
+        Returns
+        -------
+        float
+            Pearson correlation coefficient (-1 to 1, higher is better).
+
+        Notes
+        -----
+        If either vector has no variation (std = 0), returns 0.0.
         """
         # Handle vectors with no variation
         if np.std(exp_vector) == 0 or np.std(pred_vector) == 0:
@@ -670,14 +779,24 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self, exp_vector: np.ndarray, pred_vector: np.ndarray
     ) -> float:
         """
-        Calculate mean squared error between experimental and predicted vectors
+        Calculate mean squared error between experimental and predicted vectors.
 
-        Parameters:
-            exp_vector (np.ndarray): Experimental intensity vector
-            pred_vector (np.ndarray): Predicted intensity vector
+        Parameters
+        ----------
+        exp_vector : np.ndarray
+            Experimental intensity vector.
+        pred_vector : np.ndarray
+            Predicted intensity vector.
 
-        Returns:
-            float: Mean squared error (lower is better)
+        Returns
+        -------
+        float
+            Mean squared error (lower is better).
+
+        Notes
+        -----
+        The vectors are normalized using L2 normalization before calculating
+        the mean squared error for fair comparison.
         """
         # Normalize vectors for fair comparison using L2 normalization
         exp_norm = self._normalize_vector_l2(exp_vector)
@@ -687,13 +806,22 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
 
     def _calculate_entropy(self, vector: np.ndarray) -> float:
         """
-        Calculate Shannon entropy of a vector that has already been sum-1 normalized
+        Calculate Shannon entropy of a vector that has already been sum-1 normalized.
 
-        Parameters:
-            vector (np.ndarray): Input vector, which has already been sum-1 normalized
+        Parameters
+        ----------
+        vector : np.ndarray
+            Input vector, which has already been sum-1 normalized.
 
-        Returns:
-            float: Shannon entropy
+        Returns
+        -------
+        float
+            Shannon entropy.
+
+        Notes
+        -----
+        Only non-zero probabilities are considered for entropy calculation.
+        If all probabilities are zero, returns 0.0.
         """
         # Only consider non-zero probabilities for entropy calculation
         mask = vector > 0
@@ -708,14 +836,25 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
     ) -> float:
         """
         Calculate unweighted spectral entropy between experimental and predicted vectors.
-        https://www.nature.com/articles/s41592-021-01331-z
 
-        Parameters:
-            exp_vector (np.ndarray): Experimental intensity vector
-            pred_vector (np.ndarray): Predicted intensity vector
+        Parameters
+        ----------
+        exp_vector : np.ndarray
+            Experimental intensity vector.
+        pred_vector : np.ndarray
+            Predicted intensity vector.
 
-        Returns:
-            float: Spectral entropy similarity
+        Returns
+        -------
+        float
+            Spectral entropy similarity.
+
+        Notes
+        -----
+        Based on the method described in https://www.nature.com/articles/s41592-021-01331-z.
+        The spectral entropy is calculated using the formula:
+        1 - (2*S_PM - S_P - S_M)/ln(4), where S_PM is the entropy of the mixed
+        distribution, and S_P and S_M are the entropies of the individual distributions.
         """
         # Sum-to-1 normalization
         sum_normalized_exp_vector = self._normalize_vector_sum(exp_vector)
@@ -744,14 +883,20 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self, exp_vector: np.ndarray, pred_vector: np.ndarray
     ) -> Tuple[int, int]:
         """
-        Calculate counts of predicted peaks seen/not seen in experimental spectrum
+        Calculate counts of predicted peaks seen/not seen in experimental spectrum.
 
-        Parameters:
-            exp_vector (np.ndarray): Experimental intensity vector
-            pred_vector (np.ndarray): Predicted intensity vector
+        Parameters
+        ----------
+        exp_vector : np.ndarray
+            Experimental intensity vector.
+        pred_vector : np.ndarray
+            Predicted intensity vector.
 
-        Returns:
-            Tuple[int, int]: (predicted_seen_nonzero, predicted_not_seen)
+        Returns
+        -------
+        tuple of (int, int)
+            - predicted_seen_nonzero: Number of predicted peaks that are also present in experimental spectrum
+            - predicted_not_seen: Number of predicted peaks that are not present in experimental spectrum
         """
         predicted_seen_nonzero = np.sum((pred_vector > 0) & (exp_vector > 0))
         predicted_not_seen = np.sum((pred_vector > 0) & (exp_vector == 0))
@@ -785,14 +930,28 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self, exp_vector: np.ndarray, pred_vector: np.ndarray
     ) -> Dict[str, float]:
         """
-        Calculate all similarity features between experimental and predicted vectors
+        Calculate all similarity features between experimental and predicted vectors.
 
-        Parameters:
-            exp_vector (np.ndarray): Experimental intensity vector
-            pred_vector (np.ndarray): Predicted intensity vector
+        Parameters
+        ----------
+        exp_vector : np.ndarray
+            Experimental intensity vector.
+        pred_vector : np.ndarray
+            Predicted intensity vector.
 
-        Returns:
-            Dict[str, float]: Dictionary of similarity features
+        Returns
+        -------
+        dict of str to float
+            Dictionary of similarity features, including:
+            - spectral_angle_similarity: Spectral angle similarity (0-1)
+            - cosine_similarity: Cosine similarity (0-1)
+            - pearson_correlation: Pearson correlation (-1 to 1)
+            - spearman_correlation: Spearman correlation (-1 to 1)
+            - mean_squared_error: Mean squared error
+            - unweighted_entropy_similarity: Spectral entropy similarity
+            - predicted_seen_nonzero: Number of predicted peaks seen in experimental spectrum
+            - predicted_not_seen: Number of predicted peaks not seen in experimental spectrum
+            - bray_curtis_similarity: Bray-Curtis similarity (0-1)
         """
         spectral_angle_similarity = self._calculate_spectral_angle_similarity(
             exp_vector, pred_vector
@@ -980,10 +1139,17 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
 
     def generate_features(self) -> pd.DataFrame:
         """
-        Public interface for generating spectral similarity features
+        Public interface for generating spectral similarity features.
 
-        Returns:
-            pd.DataFrame: DataFrame containing the generated features
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the generated features.
+
+        Notes
+        -----
+        This method is a wrapper around _generate_features that ensures
+        the results are cached and only computed once.
         """
         if self.results is None:
             self.results = self._generate_features()
@@ -991,9 +1157,16 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
 
     def get_full_data(self) -> pd.DataFrame:
         """
-        Return the full DataFrame with all columns
+        Return the full DataFrame with all columns.
 
-        Returns:
-            pd.DataFrame: Full DataFrame with all columns
+        Returns
+        -------
+        pd.DataFrame
+            Full DataFrame with all columns.
+
+        Notes
+        -----
+        This method returns the complete DataFrame including all intermediate
+        results and raw data used in feature generation.
         """
         return self.results

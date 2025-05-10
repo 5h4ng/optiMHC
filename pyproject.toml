@@ -33,7 +33,7 @@ dependencies = [
 ]
 
 [project.scripts]
-optimhc = "optimhc.__main__:main"
+optimhc = "optimhc.__main__:cli"
 
 [tool.setuptools]
 include-package-data = true

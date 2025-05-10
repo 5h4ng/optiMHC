@@ -11,14 +11,30 @@ def read_pin(
     retention_time_column: Optional[str] = None,
 ) -> PsmContainer:
     """
-    Reads a Percolator INput (PIN) file into a PsmContainer object.
+    Read PSMs from a Percolator INput (PIN) file.
 
-    Parameters:
-        pin_file (Union[str, List[str]], pd.DataFrame): The file path to the PIN file or a list of file paths.
-        retention_time_column (Optional[str]): The column containing the retention time.
+    Parameters
+    ----------
+    pin_files : Union[str, List[str], pd.DataFrame]
+        The file path to the PIN file, a list of file paths, or a DataFrame
+        containing PIN data.
+    retention_time_column : Optional[str], optional
+        The column containing the retention time. If None, no retention time
+        will be included.
 
-    Returns:
-        PsmContainer: A PsmContainer object containing the PSM data.
+    Returns
+    -------
+    PsmContainer
+        A PsmContainer object containing the PSM data.
+
+    Notes
+    -----
+    This function:
+    1. Reads PIN file(s) into a DataFrame
+    2. Identifies required columns (case-insensitive)
+    3. Processes scan IDs and hit ranks
+    4. Converts data types appropriately
+    5. Creates a PsmContainer with the processed data
     """
     logger.info("Reading PIN file(s) into PsmContainer.")
     if isinstance(pin_files, str):
@@ -115,14 +131,24 @@ def read_pin(
 
 def _read_single_pin_as_df(pin_file: str) -> pd.DataFrame:
     """
-    Proteins column in PIN file is a tab-separated list of proteins.
-    This function reads the PIN file and stores the proteins in one column of a dataframe.
+    Read a single PIN file into a DataFrame.
 
-    Parameters:
-        pin_file (str): The file path to the PIN file.
+    Parameters
+    ----------
+    pin_file : str
+        The file path to the PIN file.
 
-    Returns:
-        pd.DataFrame: A DataFrame containing the PSM data.
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the PSM data.
+
+    Notes
+    -----
+    This function:
+    1. Reads the PIN file header
+    2. Processes the proteins column as a tab-separated list
+    3. Creates a DataFrame with the processed data
     """
     logger.info(f"Reading PIN file: {pin_file}")
     with open(pin_file, "r") as f:

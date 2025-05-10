@@ -2,18 +2,47 @@
 
 ## Usage
 
-### Command-line Execution
+### Command-line Execution (Modern CLI)
 
-Run the pipeline by providing a YAML configuration file:
+You can run optiMHC using either a YAML configuration file or by specifying parameters directly via the command line.
+
+#### Using a YAML Configuration File
 
 ```bash
-optimhc --mode pipeline /path/to/config.yaml
+optimhc pipeline --config /path/to/config.yaml
 ```
 
-Run in experiment mode to test multiple feature combinations:
+Run in experiment mode:
 
 ```bash
-optimhc --mode pipeline /path/to/config.yaml --experiment
+optimhc experiment --config /path/to/config.yaml
+```
+
+#### Using Direct Command-Line Parameters
+
+```bash
+optimhc pipeline \
+  --input-type pepxml \
+  --input-file ./data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml \
+  --decoy-prefix DECOY_ \
+  --output-dir ./results \
+  --visualization \
+  --num-processes 32 \
+  --allele HLA-A*02:02 \
+  --feature-generator 'name: Basic' \
+  --feature-generator 'name: DeepLC' \
+  --test-fdr 0.01 \
+  --model Percolator
+```
+
+You can mix and override YAML config values with CLI parameters as needed.
+
+#### Full CLI Help
+
+```bash
+optimhc --help
+optimhc pipeline --help
+optimhc experiment --help
 ```
 
 ---
@@ -66,7 +95,7 @@ Rescore parameters control how the rescoring step is executed and include:
 |------------|---------|-------------|----------------------------------------------------------------------------|
 | `testFDR`  | Float   | `0.01`      | The false-discovery rate threshold at which to evaluate the learned models.       |
 | `model`    | String  | `Percolator`| Model to use for rescoring (valid options include `Percolator`, `XGBoost`, or `RandomForest`). |
-| `numJobs`  | Integer | `4`         |The number of parallel jobs to run. This value is passed to Scikit-learn’s n_jobs parameter to control parallelism for model training or scoring. Set to -1 to use all available CPU cores.                   |
+| `numJobs`  | Integer | `4`         |The number of parallel jobs to run. This value is passed to Scikit-learn's n_jobs parameter to control parallelism for model training or scoring. Set to -1 to use all available CPU cores.                   |
 
 ---
 
@@ -145,9 +174,9 @@ rescore:
 
 ## Try It Yourself
 
+You can also run the test suite as a full example:
 
 ```bash
-cd ./examples
-optimch --mode pipeline classI_example.yaml
+pytest tests/
 ```
 

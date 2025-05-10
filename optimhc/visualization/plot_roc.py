@@ -18,16 +18,36 @@ def plot_qvalues(
     """
     Plot q-values for the given results.
 
-    Parameters:
-        results: A list of results objects or a single result object.
-                 Each result object should have a method `plot_qvalues`.
-        save_path: Optional. If provided, saves the plot to the specified path.
-        dpi: The resolution of the plot.
-        figsize: The size of the figure.
-        threshold: The q-value threshold for plotting.
-        colors: A list of colors for the plots.
-        **kwargs: Additional plotting parameters.
+    Parameters
+    ----------
+    results : object or list
+        A list of results objects or a single result object.
+        Each result object should have a method `plot_qvalues`.
+    save_path : str, optional
+        If provided, saves the plot to the specified path.
+    dpi : int, optional
+        The resolution of the plot. Default is 300.
+    figsize : tuple, optional
+        The size of the figure. Default is (15, 10).
+    threshold : float, optional
+        The q-value threshold for plotting. Default is 0.05.
+    colors : list, optional
+        A list of colors for the plots. If not provided, uses default colors.
+    **kwargs : dict
+        Additional plotting parameters.
 
+    Returns
+    -------
+    None
+        The function displays or saves the plot.
+
+    Notes
+    -----
+    This function:
+    1. Creates a figure with two subplots for PSMs and peptides
+    2. Plots q-values for each result with different colors
+    3. Adds legends and titles to each subplot
+    4. Saves or displays the plot based on save_path
     """
     if not isinstance(results, list):
         results = [results]

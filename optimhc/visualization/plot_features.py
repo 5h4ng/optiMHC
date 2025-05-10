@@ -23,17 +23,29 @@ def plot_feature_importance(
       - XGBoost models which provide a 'feature_importances_' attribute. Since these values are
         always positive, no hatch patterns are applied.
 
-    The function automatically detects the model type based on the presence of the corresponding attribute.
+    Parameters
+    ----------
+    models : list
+        A list of model objects.
+        For linear models, each model should have an 'estimator' with 'coef_'.
+        For XGBoost models, each model should have a 'feature_importances_' attribute.
+    rescoring_features : dict
+        A dictionary where keys are sources and values are lists of features.
+    save_path : str, optional
+        If provided, saves the plot to the specified path.
+    sort : bool, optional
+        If True, sorts the features by their importance in descending order.
+        Default is False.
+    error : bool, optional
+        If True, adds error bars to the plot. Default is False.
+    **kwargs : dict
+        Additional plotting parameters such as 'figsize' and 'dpi'.
 
-    Parameters:
-        models: A list of model objects.
-                For linear models, each model should have an 'estimator' with 'coef_'.
-                For XGBoost models, each model should have a 'feature_importances_' attribute.
-        rescoring_features: A dictionary where keys are sources and values are lists of features.
-        save_path: Optional. If provided, saves the plot to the specified path.
-        sort: Boolean, if True, sorts the features by their importance in descending order.
-        error: Boolean, if True, adds error bars to the plot.
-        **kwargs: Additional plotting parameters such as 'figsize' and 'dpi'.
+    Notes
+    -----
+    The function automatically detects the model type based on the presence of the corresponding attribute.
+    For linear models, it uses hatch patterns to differentiate between positive and negative coefficients.
+    For XGBoost models, it uses solid bars since the importances are always positive.
     """
     # Determine the model type based on the first model in the list.
     if hasattr(models[0].estimator, "coef_"):
@@ -162,10 +174,22 @@ def visualize_feature_correlation(psms: PsmContainer, save_path=None, **kwargs):
     """
     Visualize the correlation between features in a DataFrame using a heatmap.
 
-    Parameters:
-        psms (PsmContainer): A PsmContainer object containing the features to visualize.
-        save_path (str, optional): The file path to save the plot. If not provided, the plot is displayed.
-        **kwargs: Additional plotting parameters such as `figsize` and `dpi`, etc.
+    Parameters
+    ----------
+    psms : PsmContainer
+        A PsmContainer object containing the features to visualize.
+    save_path : str, optional
+        The file path to save the plot. If not provided, the plot is displayed.
+    **kwargs : dict
+        Additional plotting parameters such as `figsize` and `dpi`, etc.
+
+    Notes
+    -----
+    This function:
+    1. Extracts all rescoring features from the PsmContainer
+    2. Calculates the correlation matrix between features
+    3. Creates a heatmap visualization of the correlations
+    4. Uses a coolwarm colormap to show positive and negative correlations
     """
     figsize = kwargs.get("figsize", (40, 36))
     dpi = kwargs.get("dpi", 300)

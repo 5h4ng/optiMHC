@@ -11,15 +11,29 @@ logger = getLogger(__name__)
 
 def convert_pfm_to_pwm(pfm_filename, pseudocount=0.8, background_freqs=None):
     """
-    Converts a Position Frequency Matrix (PFM) file to a Position Weight Matrix (PWM).
+    Convert a Position Frequency Matrix (PFM) file to a Position Weight Matrix (PWM).
 
-    Parameters:
-        pfm_filename (str): The file path to the PFM file.
-        pseudocount (float): The pseudocount to add to the PFM to avoid zero probabilities.
-        background_freqs (dict): A dictionary containing the background frequencies for each nucleotide.
+    Parameters
+    ----------
+    pfm_filename : str
+        The file path to the PFM file.
+    pseudocount : float, optional
+        The pseudocount to add to the PFM to avoid zero probabilities. Default is 0.8.
+    background_freqs : dict, optional
+        Dictionary containing the background frequencies for each amino acid.
+        If None, uses 1/20 for all.
 
-    Returns:
-        pd.DataFrame: A DataFrame representation of the PWM.
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame representation of the PWM.
+
+    Notes
+    -----
+    The conversion process involves:
+    1. Adding pseudocounts to the PFM
+    2. Converting to Position Probability Matrix (PPM)
+    3. Converting to PWM using log2(PPM/background_freqs)
     """
     # Default background frequencies if not provided
     if background_freqs is None:
@@ -36,16 +50,24 @@ def convert_pfm_to_pwm(pfm_filename, pseudocount=0.8, background_freqs=None):
 
 def remove_pre_and_nxt_aa(peptide: str) -> str:
     """
-    Removes the pre and next amino acids from a peptide sequence.
+    Remove the pre and next amino acids from a peptide sequence.
 
-    Example:
-        - "A.AB[15.99]CDEFGHI.K" -> "ABCDEFGHI"
+    Parameters
+    ----------
+    peptide : str
+        The peptide sequence with flanking amino acids.
+        Example: '.AANDAGYFNDEMAPIEVKTK.'
 
-    Parameters:
-        peptide (str): The peptide sequence.
+    Returns
+    -------
+    str
+        The peptide sequence with flanking amino acids removed.
+        Example: 'AANDAGYFNDEMAPIEVKTK'
 
-    Returns:
-        str: The peptide sequence with pre and next amino acids removed.
+    Notes
+    -----
+    This function removes any amino acids before the first '.' and after the last '.'
+    in the peptide sequence.
     """
     import re
 
@@ -54,19 +76,29 @@ def remove_pre_and_nxt_aa(peptide: str) -> str:
 
 def remove_modifications(peptide: str, keep_modification=None) -> str:
     """
-    Removes modifications from a peptide sequence, with an option to keep specific modifications.
+    Remove modifications from a peptide sequence, with an option to keep specific modifications.
 
-    Example:
-        - "A.AB[15.99]CDEFGHI.K" -> "A.ABCDEFGHI.K"
-        - "A.AB[UNIMOD:4]C[15.99]DEFGHI.K", keep_modification='UNIMOD:4'
-            -> "A.AB[UNIMOD:4]CDEFGHI.K"
+    Parameters
+    ----------
+    peptide : str
+        The peptide sequence with modifications in brackets.
+        Example: 'AANDAGYFNDEM[15.9949]APIEVK[42.0106]TK'
+    keep_modification : str or list, optional
+        The modification(s) to keep. If provided, only these modifications will be
+        preserved in the output sequence. Default is None.
 
-    Parameters:
-        peptide (str): The peptide sequence.
-        keep_modification (str or list, optional): The modification(s) to keep.
+    Returns
+    -------
+    str
+        The peptide sequence with modifications removed or kept.
+        Example: 'AANDAGYFNDEMAPIEVKTK' (if keep_modification is None)
+        Example: 'AANDAGYFNDEM[15.9949]APIEVKTK' (if keep_modification=['15.9949'])
 
-    Returns:
-        str: The peptide sequence with modifications removed or kept.
+    Notes
+    -----
+    Modifications are specified in square brackets after the amino acid.
+    If keep_modification is provided, only those specific modifications will be
+    preserved in the output sequence.
     """
     import re
 
@@ -87,17 +119,25 @@ def remove_modifications(peptide: str, keep_modification=None) -> str:
 
 def preprocess_peptide(peptide: str) -> str:
     """
-    Preprocesses the peptide sequence by removing flanking regions and modifications.
+    Preprocess the peptide sequence by removing flanking regions and modifications.
 
-    Example:
-        - "A.AB[15.99]CDEFGHI.K" -> "ABCDEFGHI"
-        - "B.AC[Carbamidomethyl]DE.F" -> "ACDE"
+    Parameters
+    ----------
+    peptide : str
+        Original peptide sequence with possible flanking regions and modifications.
+        Example: '.AANDAGYFNDEM[15.9949]APIEVK[42.0106]TK.'
 
-    Parameters:
-        peptide (str): Original peptide sequence.
+    Returns
+    -------
+    str
+        Cleaned peptide sequence without flanking regions and modifications.
+        Example: 'AANDAGYFNDEMAPIEVKTK'
 
-    Returns:
-        str: Cleaned peptide sequence.
+    Notes
+    -----
+    This function performs two operations in sequence:
+    1. Removes flanking amino acids using remove_pre_and_nxt_aa
+    2. Removes all modifications using remove_modifications
     """
     peptide = remove_pre_and_nxt_aa(peptide)
     peptide = remove_modifications(peptide)
@@ -108,11 +148,22 @@ def list_all_files_in_directory(directory_path: str) -> List[str]:
     """
     Retrieve all files in the specified directory and return a list of file paths.
 
-    Parameters:
-        directory_path (str): The path to the directory.
+    Parameters
+    ----------
+    directory_path : str
+        The path to the directory to search in.
+        Example: '/path/to/directory'
 
-    Returns:
-        List[str]: A list of file paths.
+    Returns
+    -------
+    list of str
+        List of absolute file paths found in the directory and its subdirectories.
+        Example: ['/path/to/directory/file1.txt', '/path/to/directory/subdir/file2.txt']
+
+    Notes
+    -----
+    This function recursively searches through all subdirectories and returns
+    absolute paths for all files found.
     """
     path = Path(directory_path)
     file_list = [str(file) for file in path.rglob("*") if file.is_file()]
@@ -121,21 +172,25 @@ def list_all_files_in_directory(directory_path: str) -> List[str]:
 
 def extract_unimod_from_peptidoform(peptide: str, mod_dict: dict) -> tuple:
     """
-    Converts a modified peptide sequence into DeepLC format.
+    Convert a modified peptide sequence into DeepLC format.
 
-    Parameters:
-        peptide (str): The input peptide sequence with modifications in brackets.
-                       Example: 'AANDAGYFNDEM[15.9949]APIEVK[42.0106]TK'
-        mod_dict (dict): A dictionary mapping modification names (in peptide) to
-                         corresponding Unimod names.
-                         Example: {'15.9949': 'Oxidation', '42.0106': 'Acetyl'}
+    Parameters
+    ----------
+    peptide : str
+        The input peptide sequence with modifications in brackets.
+        Example: 'AANDAGYFNDEM[15.9949]APIEVK[42.0106]TK'
+    mod_dict : dict
+        Dictionary mapping modification names (in peptide) to corresponding Unimod names.
+        Example: {'15.9949': 'Oxidation', '42.0106': 'Acetyl'}
 
-    Returns:
-        tuple: A tuple containing:
-            - seq (str): The unmodified peptide sequence.
-            - modifications (str): A string of modifications formatted as
-                                   `position|UnimodName`, separated by pipes `|`.
-                                   Example: '12|Oxidation|18|Acetyl'
+    Returns
+    -------
+    tuple
+        (seq, modifications):
+            seq : str
+                The unmodified peptide sequence.
+            modifications : str
+                String of modifications formatted as `position|UnimodName`, separated by pipes `|`.
     """
     clean_sequence = ""
     modifications = []
@@ -169,17 +224,28 @@ def extract_unimod_from_peptidoform(peptide: str, mod_dict: dict) -> tuple:
 
 def convert_to_unimod_format(peptide: str, mod_dict: dict) -> str:
     """
-    Converts a modified peptide sequence into Unimod format.
+    Convert a modified peptide sequence into Unimod format.
 
-    Parameters:
-        peptide (str): The input peptide sequence with modifications in brackets.
-                       Example: 'AANDAGYFNDEM[15.9949]APIEVK[42.0106]TK'
-        mod_dict (dict): A dictionary mapping modification names (in peptide) to
-                         corresponding Unimod names.
-                         Example: {'15.9949': 'UNIMOD:4', '42.0106': 'UNIMOD:1'}
-    Returns:
-        str: The peptide sequence formatted for Unimod.
-             Example: 'AANDAGYFNDEM[UNIMOD:4]APIEVK[UNIMOD:1]TK'
+    Parameters
+    ----------
+    peptide : str
+        The input peptide sequence with modifications in brackets.
+        Example: 'AANDAGYFNDEM[15.9949]APIEVK[42.0106]TK'
+    mod_dict : dict
+        Dictionary mapping modification names (in peptide) to corresponding Unimod names.
+        Example: {'15.9949': 'UNIMOD:4', '42.0106': 'UNIMOD:1'}
+
+    Returns
+    -------
+    str
+        The peptide sequence formatted for Unimod.
+        Example: 'AANDAGYFNDEM[UNIMOD:4]APIEVK[UNIMOD:1]TK'
+
+    Notes
+    -----
+    This function replaces the modification names in brackets with their
+    corresponding Unimod identifiers while preserving the peptide sequence
+    structure.
     """
     res = peptide
     for key, value in mod_dict.items():

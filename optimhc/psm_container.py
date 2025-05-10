@@ -12,31 +12,47 @@ class PsmContainer:
     """
     A container for managing peptide-spectrum matches (PSMs) in immunopeptidomics rescoring pipelines.
 
-    The PsmContainer class provides a structured way to store and manipulate PSM data. It enforces
-    consistency in the column names and provides methods for filtering, merging, and adding new features.
+    Parameters
+    ----------
+    psms : pd.DataFrame
+        DataFrame containing the PSM data.
+    label_column : str
+        Column containing the label (True for target, False for decoy).
+    scan_column : str
+        Column containing the scan number.
+    spectrum_column : str
+        Column containing the spectrum identifier.
+    ms_data_file_column : str
+        Column containing the MS data file that the PSM originated from.
+    peptide_column : str
+        Column containing the peptide sequence.
+    protein_column : str
+        Column containing the protein accessions.
+    rescoring_features : dict of str to list of str
+        Dictionary of feature columns for rescoring.
+    hit_rank_column : str, optional
+        Column containing the hit rank.
+    charge_column : str, optional
+        Column containing the charge state.
+    retention_time_column : str, optional
+        Column containing the retention time.
+    metadata_column : str, optional
+        Column containing metadata.
 
-    Parameters:
-        psms (pd.DataFrame): A DataFrame containing the PSM data.
-        label_column (str): The column containing the label (True for target, False for decoy).
-        scan_column (str): The column containing the scan number.
-        spectrum_column (str): The column containing the spectrum identifier.
-        ms_data_file_column (str): The column containing the MS data file that the PSM originated from.
-        peptide_column (str): The column containing the peptide sequence.
-        protein_column (str): The column containing the protein accessions.
-        charge_column (Optional[str]): The column containing the charge state.
-        rescoring_features (Dict[str, List[str]]): A dictionary of feature columns for rescoring.
-        hit_rank_column (Optional[str]): The column containing the hit rank.
-        score_column (Optional[str]): The column containing the Percolator score.
-        retention_time_column (Optional[str]): The column containing the retention time.
-        metadata_column (Optional[str]): The column containing metadata.
-
-    Attributes:
-        psms (pd.DataFrame): A copy of the DataFrame containing the PSM data.
-        target_psms (pd.DataFrame): A DataFrame containing only target PSMs (label = True).
-        decoy_psms (pd.DataFrame): A DataFrame containing only decoy PSMs (label = False).
-        peptides (pd.Series): A Series containing all peptides from the PSM data.
-        columns (List[str]): A list of column names in the PSM DataFrame.
-        rescoring_features (Dict[str, List[str]]): A dictionary of rescoring feature columns in the PSM DataFrame.
+    Attributes
+    ----------
+    psms : pd.DataFrame
+        Copy of the DataFrame containing the PSM data.
+    target_psms : pd.DataFrame
+        DataFrame containing only target PSMs (label = True).
+    decoy_psms : pd.DataFrame
+        DataFrame containing only decoy PSMs (label = False).
+    peptides : list of str
+        List containing all peptides from the PSM data.
+    columns : list of str
+        List of column names in the PSM DataFrame.
+    rescoring_features : dict of str to list of str
+        Dictionary of rescoring feature columns in the PSM DataFrame.
     """
 
     def __init__(
@@ -123,94 +139,169 @@ class PsmContainer:
 
     @property
     def psms(self) -> pd.DataFrame:
-        """Returns a copy of the PSM DataFrame to prevent external modification."""
+        """
+        Get a copy of the PSM DataFrame to prevent external modification.
+
+        Returns
+        -------
+        pd.DataFrame
+            A copy of the PSM DataFrame.
+        """
         # TODO: return in a specific column order
         return self._psms.copy()
 
     def __len__(self) -> int:
+        """
+        Get the number of PSMs in the container.
+
+        Returns
+        -------
+        int
+            Number of PSMs.
+        """
         return len(self._psms)
 
     @property
     def target_psms(self) -> pd.DataFrame:
         """
-        Returns a DataFrame containing only target PSMs.
+        Get a DataFrame containing only target PSMs.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with only target PSMs (label = True).
         """
         return self._psms[self._psms[self.label_column] == True]
 
     @property
     def decoy_psms(self) -> pd.DataFrame:
         """
-        Returns a DataFrame containing only decoy PSMs.
+        Get a DataFrame containing only decoy PSMs.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with only decoy PSMs (label = False).
         """
         return self._psms[self._psms[self.label_column] == False]
 
     @property
     def columns(self) -> List[str]:
         """
-        Returns the column names of the PSM DataFrame.
+        Get the column names of the PSM DataFrame.
+
+        Returns
+        -------
+        list of str
+            List of column names.
         """
         return self._psms.columns
 
     @property
     def feature_columns(self) -> List[str]:
         """
-        Returns a list of all feature columns in the PSM DataFrame.
+        Get a list of all feature columns in the PSM DataFrame.
+
+        Returns
+        -------
+        list of str
+            List of feature column names.
         """
         return [col for cols in self.rescoring_features.values() for col in cols]
 
     @property
     def feature_sources(self) -> List[str]:
         """
-        Returns a list of all feature sources in the PSM DataFrame.
+        Get a list of all feature sources in the PSM DataFrame.
+
+        Returns
+        -------
+        list of str
+            List of feature source names.
         """
         return list(self.rescoring_features.keys())
 
     @property
     def peptides(self) -> List[str]:
         """
-        Retrieves the peptide sequences from the PSM data.
+        Get the peptide sequences from the PSM data.
+
+        Returns
+        -------
+        list of str
+            List of peptide sequences.
         """
         return self._psms[self.peptide_column].tolist()
 
     @property
     def ms_data_files(self) -> List[str]:
         """
-        Retrieves the MS data files from the PSM data.
+        Get the MS data files from the PSM data.
+
+        Returns
+        -------
+        list of str
+            List of MS data file names.
         """
         return self._psms[self.ms_data_file_column].tolist()
 
     @property
     def scan_ids(self) -> List[int]:
         """
-        Retrieves the scan numbers from the PSM data.
+        Get the scan numbers from the PSM data.
+
+        Returns
+        -------
+        list of int
+            List of scan numbers.
         """
         return self._psms[self.scan_column].tolist()
 
     @property
     def charges(self) -> List[int]:
         """
-        Retrieves the charge states from the PSM data.
+        Get the charge states from the PSM data.
+
+        Returns
+        -------
+        list of int
+            List of charge states.
         """
         return self._psms[self.charge_column].tolist()
 
     @property
     def metadata(self) -> pd.Series:
         """
-        Retrieves the metadata from the PSM data.
+        Get the metadata from the PSM data.
+
+        Returns
+        -------
+        pd.Series
+            Series containing metadata for each PSM.
         """
         return self._psms[self.metadata_column]
 
     @property
     def spectrum_ids(self) -> List[str]:
         """
-        Retrieves the spectrum identifiers from the PSM data.
+        Get the spectrum identifiers from the PSM data.
+
+        Returns
+        -------
+        list of str
+            List of spectrum identifiers.
         """
         return self._psms[self.spectrum_column].tolist()
 
     @property
     def identifier_columns(self) -> List[str]:
         """
-        Returns the columns that uniquely identify each PSM.
+        Get the columns that uniquely identify each PSM.
+
+        Returns
+        -------
+        list of str
+            List of identifier column names.
         """
         return [
             self.scan_column,
@@ -221,13 +312,26 @@ class PsmContainer:
 
     def copy(self) -> "PsmContainer":
         """
-        Returns a copy of the PsmContainer object.
+        Return a deep copy of the PsmContainer object.
+
+        Returns
+        -------
+        PsmContainer
+            A deep copy of the current PsmContainer.
         """
         import copy
 
         return copy.deepcopy(self)
 
     def __repr__(self) -> str:
+        """
+        Return a string representation of the PsmContainer.
+
+        Returns
+        -------
+        str
+            String summary of the PsmContainer.
+        """
         return (
             f"PsmContainer with {len(self)} PSMs\n"
             f"\t - Target PSMs: {len(self.target_psms)}\n"
@@ -239,13 +343,17 @@ class PsmContainer:
 
     def drop_features(self, features: List[str]) -> None:
         """
-        Drops specified features from the PSM DataFrame.
+        Drop specified features from the PSM DataFrame.
 
-        Parameters:
-            features (List[str]): List of feature column names to drop.
+        Parameters
+        ----------
+        features : list of str
+            List of feature column names to drop.
 
-        Raises:
-            ValueError: If any of the features do not exist in the DataFrame.
+        Raises
+        ------
+        ValueError
+            If any of the features do not exist in the DataFrame.
         """
         missing_features = [f for f in features if f not in self._psms.columns]
         if missing_features:
@@ -270,13 +378,17 @@ class PsmContainer:
 
     def drop_source(self, source: str) -> None:
         """
-        Drops all features associated with a specific source from the PSM DataFrame.
+        Drop all features associated with a specific source from the PSM DataFrame.
 
-        Parameters:
-            source (str): Name of the source to drop.
+        Parameters
+        ----------
+        source : str
+            Name of the source to drop.
 
-        Raises:
-            ValueError: If the source does not exist in the rescoring features.
+        Raises
+        ------
+        ValueError
+            If the source does not exist in the rescoring features.
         """
         if source not in self.rescoring_features:
             raise ValueError(f"Source '{source}' not found in rescoring features.")
@@ -290,22 +402,19 @@ class PsmContainer:
         source,
     ) -> None:
         """
-        Merges new metadata into the PSM DataFrame based on specified columns.
+        Merge new metadata into the PSM DataFrame based on specified columns.
         Metadata from the specified source is stored as a nested dictionary inside the metadata column.
-        For example:
-            {
-                "source_name": {
-                    "metadata_field_1": "value1",
-                    "metadata_field_2": "value2"
-                }
-            }
 
-        Parameters:
-            metadata_df (pd.DataFrame): DataFrame containing new metadata to add.
-            psms_key (Union[str, List[str]]): Column name(s) in the PSM data to merge on.
-            metadata_key (Union[str, List[str]]): Column name(s) in the metadata data to merge on.
-            source (str): Name of the source of the new metadata.
-
+        Parameters
+        ----------
+        metadata_df : pd.DataFrame
+            DataFrame containing new metadata to add.
+        psms_key : str or list of str
+            Column name(s) in the PSM data to merge on.
+        metadata_key : str or list of str
+            Column name(s) in the metadata data to merge on.
+        source : str
+            Name of the source of the new metadata.
         """
         if self.metadata_column is None:
             logger.info("No existing metadata column. Creating new metadata column.")
@@ -335,14 +444,18 @@ class PsmContainer:
 
     def get_top_hits(self, n: int = 1):
         """
-        Returns the top n hits based on the hit rank column.
+        Get the top n hits based on the hit rank column.
         If the hit rank column is not specified, returns the original PSMs.
 
-        Parameters:
-            n (int): The number of top hits to return. Default is 1.
+        Parameters
+        ----------
+        n : int, optional
+            The number of top hits to return. Default is 1.
 
-        Returns:
-            PsmContainer: A new PsmContainer object containing the top n hits.
+        Returns
+        -------
+        PsmContainer
+            A new PsmContainer object containing the top n hits.
         """
         if self.hit_rank_column is None:
             logger.warning("Rank column not specified. Return the original PSMs.")
@@ -361,14 +474,20 @@ class PsmContainer:
         suffix: Optional[str] = None,
     ) -> None:
         """
-        Merges new features into the PSM DataFrame based on specified columns.
+        Merge new features into the PSM DataFrame based on specified columns.
 
-        Parameters:
-            features_df (pd.DataFrame): DataFrame containing new features to add.
-            psm_key (Union[str, List[str]]): Column name(s) in the PSM data to merge on.
-            feature_key (Union[str, List[str]]): Column name(s) in the features data to merge on.
-            source (str): Name of the source of the new features.
-
+        Parameters
+        ----------
+        features_df : pd.DataFrame
+            DataFrame containing new features to add.
+        psms_key : str or list of str
+            Column name(s) in the PSM data to merge on.
+        feature_key : str or list of str
+            Column name(s) in the features data to merge on.
+        source : str
+            Name of the source of the new features.
+        suffix : str, optional
+            Suffix to add to the new columns if there's a name conflict.
         """
         if isinstance(psms_key, str):
             psms_key = [psms_key]
@@ -441,12 +560,16 @@ class PsmContainer:
         self, features_df: pd.DataFrame, source: str, suffix: Optional[str] = None
     ) -> None:
         """
-        Merges new features into the PSM DataFrame based on the DataFrame index.
+        Merge new features into the PSM DataFrame based on the DataFrame index.
 
-        Parameters:
-            features_df (pd.DataFrame): DataFrame containing new features to add.
-            source (str): Name of the source of the new features.
-            suffix (Optional[str]): A suffix to add to the new columns if there's a name conflict.
+        Parameters
+        ----------
+        features_df : pd.DataFrame
+            DataFrame containing new features to add.
+        source : str
+            Name of the source of the new features.
+        suffix : str, optional
+            Suffix to add to the new columns if there's a name conflict.
         """
         new_feature_cols = [col for col in features_df.columns]
         for col in new_feature_cols:
@@ -508,10 +631,14 @@ class PsmContainer:
         """
         Add results of rescore engine to the PSM DataFrame based on specified columns.
 
-        Parameters:
-            results_df (pd.DataFrame): DataFrame containing new results to add.
-            psms_key (Union[str, List[str]]): Column name(s) in the PSM data to merge on.
-            result_key (Union[str, List[str]]): Column name(s) in the results data to merge on.
+        Parameters
+        ----------
+        results_df : pd.DataFrame
+            DataFrame containing new results to add.
+        psms_key : str or list of str
+            Column name(s) in the PSM data to merge on.
+        result_key : str or list of str
+            Column name(s) in the results data to merge on.
         """
         if self.rescore_result_column is not None:
             logger.warning("Rescore result column already exists. Overwriting.")
@@ -534,14 +661,24 @@ class PsmContainer:
 
     def write_pin(self, output_file: str, source: List[str] = None) -> None:
         """
-        Writes the PSM data to a Percolator input (PIN) file.
+        Write the PSM data to a Percolator input (PIN) file.
+
         Percolator accepts input in a simple tab-delimited format where each row contains features associated with a single PSM:
             id <tab> label <tab> scannr <tab> feature1 <tab> ... <tab> featureN <tab> peptide <tab> proteinId1 <tab> .. <tab> proteinIdM
         With header:
             SpecID <tab> Label <tab> ScanNr <tab> Feature1 <tab> ... <tab> FeatureN <tab> Peptide <tab> Proteins
 
-        Parameters:
-            output_file (str): The path to the output PIN file.
+        Parameters
+        ----------
+        output_file : str
+            The path to the output PIN file.
+        source : list of str, optional
+            List of feature sources to include. If None, include all sources.
+
+        Returns
+        -------
+        pd.DataFrame
+            The DataFrame written to the PIN file.
         """
         df = self._psms.copy()
         # Check if the label column is str

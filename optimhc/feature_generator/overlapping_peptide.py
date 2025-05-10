@@ -24,61 +24,107 @@ class OverlappingPeptideFeatureGenerator(BaseFeatureGenerator):
     It also filters out peptides with low entropy or outlier lengths before processing.
     Additionally, it records detailed information about brother peptides and contigs, accessible via the get_all_data method.
 
-    Parameters:
-        peptides (List[str]): List of peptide sequences.
-        min_overlap_length (int): Minimum required overlap length for peptides to be considered overlapping.
-        min_length (int): Minimum peptide length to include in processing.
-        max_length (int): Maximum peptide length to include in processing.
-        min_entropy (float): Minimum Shannon entropy for peptides to include in processing.
-        fill_missing (str): Method to fill missing values for filtered peptides. Options are 'median' or 'zero'.
-        remove_pre_nxt_aa (bool): Whether to remove the preceding and following amino acids from peptides.
-        remove_modification (bool): Whether to remove modifications from peptides.
+    Parameters
+    ----------
+    peptides : list of str
+        List of peptide sequences.
+    min_overlap_length : int, optional
+        Minimum required overlap length for peptides to be considered overlapping. Default is 6.
+    min_length : int, optional
+        Minimum peptide length to include in processing. Default is 7.
+    max_length : int, optional
+        Maximum peptide length to include in processing. Default is 60.
+    min_entropy : float, optional
+        Minimum Shannon entropy for peptides to include in processing. Default is 0.
+    fill_missing : str, optional
+        Method to fill missing values for filtered peptides. Options are 'median' or 'zero'. Default is 'median'.
+    remove_pre_nxt_aa : bool, optional
+        Whether to remove the preceding and following amino acids from peptides. Default is False.
+    remove_modification : bool, optional
+        Whether to remove modifications from peptides. Default is True.
 
+    Attributes
+    ----------
+    original_peptides : list of str
+        Original list of peptide sequences.
+    min_overlap_length : int
+        Minimum required overlap length.
+    min_length : int
+        Minimum peptide length.
+    max_length : int
+        Maximum peptide length.
+    min_entropy : float
+        Minimum Shannon entropy.
+    fill_missing : str
+        Method to fill missing values.
+    remove_pre_nxt_aa : bool
+        Whether to remove preceding and following amino acids.
+    remove_modification : bool
+        Whether to remove modifications.
+    filtered_peptides : list of str
+        List of peptides after filtering.
+    filtered_indices : list of int
+        Indices of filtered peptides.
+    peptide_to_index : dict of str to int
+        Mapping of peptides to their indices.
+    overlap_data : pd.DataFrame
+        DataFrame containing overlap data.
+    peptide_to_contig : dict of str to int
+        Mapping of peptides to their contig indices.
+    assembled_contigs : list of dict
+        List of assembled contigs.
+    full_data : pd.DataFrame
+        Full data including brother peptides and contig information.
+    _overlap_graph : nx.DiGraph
+        Overlap graph.
+    _simplified_graph : nx.DiGraph
+        Simplified graph with transitive edges removed.
 
+    Notes
+    -----
     Key Data Structures:
         1. contigs: List[List[str]]
-        - Represents non-branching paths in the overlap graph
-        - Each inner list contains peptide sequences that form a continuous chain
-        - Example: [['PEPTIDE1', 'PEPTIDE2'], ['PEPTIDE3']]
+           - Represents non-branching paths in the overlap graph
+           - Each inner list contains peptide sequences that form a continuous chain
+           - Example: [['PEPTIDE1', 'PEPTIDE2'], ['PEPTIDE3']]
 
         2. assembled_contigs: List[Dict]
-        - Contains the assembled sequences and their constituent peptides
-        - Each dictionary has two keys:
-            'sequence': The merged/assembled sequence of overlapping peptides
-            'peptides': List of peptides that were used to build this contig
-        - Example: [
-            {
-                'sequence': 'LONGPEPTIDESEQUENCE',
-                'peptides': ['LONGPEP', 'PEPTIDE', 'SEQUENCE']
-            },
-            {
-                'sequence': 'SINGLEPEPTIDE',
-                'peptides': ['SINGLEPEPTIDE']
-            }
-        ]
+           - Contains the assembled sequences and their constituent peptides
+           - Each dictionary has two keys:
+               'sequence': The merged/assembled sequence of overlapping peptides
+               'peptides': List of peptides that were used to build this contig
+           - Example: [
+               {
+                   'sequence': 'LONGPEPTIDESEQUENCE',
+                   'peptides': ['LONGPEP', 'PEPTIDE', 'SEQUENCE']
+               },
+               {
+                   'sequence': 'SINGLEPEPTIDE',
+                   'peptides': ['SINGLEPEPTIDE']
+               }
+           ]
 
         3. peptide_to_contig: Dict[str, int]
-        - Maps each peptide to its contig index in assembled_contigs
-        - Key: peptide sequence
-        - Value: index of the contig containing this peptide
-        - Example: {
-            'LONGPEP': 0,
-            'PEPTIDE': 0,
-            'SEQUENCE': 0,
-            'SINGLEPEPTIDE': 1
-        }
+           - Maps each peptide to its contig index in assembled_contigs
+           - Key: peptide sequence
+           - Value: index of the contig containing this peptide
+           - Example: {
+               'LONGPEP': 0,
+               'PEPTIDE': 0,
+               'SEQUENCE': 0,
+               'SINGLEPEPTIDE': 1
+           }
 
         4. overlap_graph (_overlap_graph): nx.DiGraph
-        - Directed graph representing all possible overlaps between peptides
-        - Nodes: peptide sequences
-        - Edges: overlaps between peptides
-        - Edge weights: length of overlap
+           - Directed graph representing all possible overlaps between peptides
+           - Nodes: peptide sequences
+           - Edges: overlaps between peptides
+           - Edge weights: length of overlap
 
         5. simplified_graph (_simplified_graph): nx.DiGraph
-        - Simplified version of overlap_graph with transitive edges removed
-        - Used for final contig assembly
-        - More efficient representation of essential overlaps
-
+           - Simplified version of overlap_graph with transitive edges removed
+           - Used for final contig assembly
+           - More efficient representation of essential overlaps
     """
 
     def __init__(

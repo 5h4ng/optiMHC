@@ -1,3 +1,10 @@
+"""
+pipeline.py
+
+Implements the main optiMHC pipeline for immunopeptidomics rescoring, including input parsing,
+feature generation, rescoring, result saving, and visualization. Supports both single-run and
+experiment modes.
+"""
 import os
 import logging
 import gc
@@ -14,24 +21,44 @@ from optimhc.visualization import (
     visualize_feature_correlation,
     plot_qvalues,
 )
-from optimhc.core.config import load_config
+from optimhc.core.config import load_config, Config
 from optimhc.core.logging_helper import setup_loggers
 from optimhc.core.feature_generation import generate_features
 
 logger = logging.getLogger(__name__)
 
-
 class Pipeline:
-    """Pipeline class that encapsulates the entire data processing workflow."""
+    """
+    Main pipeline class for optiMHC, encapsulating the full data processing workflow.
 
-    def __init__(self, config_path):
-        """
-        Initialize the pipeline with a configuration file.
+    This class orchestrates input parsing, feature generation, rescoring, result saving, and visualization.
+    It supports both single-run and experiment modes (multiple feature/model combinations).
 
-        Parameters:
-            config_path (str): Path to the YAML configuration file.
+    Parameters
+    ----------
+    config : str, dict, or Config
+        Path to YAML config, dict, or Config object.
+
+    Examples
+    --------
+    >>> from optimhc.core import Pipeline
+    >>> pipeline = Pipeline(config)
+    >>> pipeline.run()
+    """
+    def __init__(self, config):
         """
-        self.config = load_config(config_path)
+        Initialize the pipeline with a configuration file, dict, or Config object.
+
+        Parameters
+        ----------
+        config : str, dict, or Config
+            Path to YAML config, dict, or Config object.
+        """
+        logger.debug(f"config: {config}")
+        if isinstance(config, Config):
+            self.config = config
+        else:
+            self.config = Config(config)
         self.experiment = self.config.get("experimentName", "optimhc_experiment")
         self.output_dir = os.path.join(self.config["outputDir"], self.experiment)
         os.makedirs(self.output_dir, exist_ok=True)
@@ -47,8 +74,17 @@ class Pipeline:
         """
         Read input PSMs based on configuration.
 
-        Returns:
-            PsmContainer: An object containing the loaded PSMs.
+        Returns
+        -------
+        PsmContainer
+            Object containing loaded PSMs.
+
+        Raises
+        ------
+        ValueError
+            If input type is unsupported.
+        Exception
+            If file reading fails.
         """
         input_type = self.config["inputType"]
         input_files = self.config["inputFile"]
@@ -69,34 +105,49 @@ class Pipeline:
 
     def _generate_features(self, psms):
         """
-        Generate features for PSMs.
+        Generate features for PSMs using the configured feature generators.
 
-        Parameters:
-            psms (PsmContainer): The PSM container object.
+        Parameters
+        ----------
+        psms : PsmContainer
+            PSM container object.
 
-        Returns:
-            PsmContainer: The PSM container with generated features.
+        Returns
+        -------
+        PsmContainer
+            PSM container with generated features.
         """
         generate_features(psms, self.config)
         return psms
 
-    def rescore(
-        self, psms, model_type=None, n_jobs=None, test_fdr=None, rescoring_features=None
-    ):
+    def rescore(self, psms, model_type=None, n_jobs=None, test_fdr=None, rescoring_features=None):
         """
-        Perform rescoring on the PSMs.
+        Perform rescoring on the PSMs using the specified or configured model.
 
-        Parameters:
-            psms (PsmContainer): The PSM container object.
-            model_type (str, optional): Type of model to use ('xgboost', 'random_forest', 'percolator').
-            n_jobs (int, optional): Number of parallel jobs.
-            test_fdr (float, optional): FDR threshold for testing.
-            rescoring_features (list, optional): Features to use for rescoring.
+        Parameters
+        ----------
+        psms : PsmContainer
+            PSM container object.
+        model_type : str, optional
+            Model type ('XGBoost', 'RandomForest', 'Percolator').
+        n_jobs : int, optional
+            Number of parallel jobs.
+        test_fdr : float, optional
+            FDR threshold.
+        rescoring_features : list, optional
+            List of features to use for rescoring.
 
-        Returns:
-            tuple: (results, models) - The rescoring results and trained models.
+        Returns
+        -------
+        results : mokapot.Results
+            Rescoring results.
+        models : list
+            Trained models.
+
+        Notes
+        -----
+        Rescoring logic is adapted from mokapot (https://mokapot.readthedocs.io/)
         """
-        # Use provided parameters or fall back to config values
         test_fdr = test_fdr if test_fdr is not None else self.test_fdr
         model_type = model_type if model_type is not None else self.model_type
         n_jobs = n_jobs if n_jobs is not None else self.n_jobs
@@ -121,14 +172,20 @@ class Pipeline:
 
     def save_results(self, psms, results, models, output_dir=None, file_root="optimhc"):
         """
-        Save rescoring results and PSM data.
+        Save rescoring results, PSM data, and trained models to disk.
 
-        Parameters:
-            psms (PsmContainer): The PSM container object.
-            results (mokapot.Results): The rescoring results.
-            models (list): The trained models.
-            output_dir (str, optional): Directory to save results to (defaults to self.output_dir).
-            file_root (str, optional): Root name for output files.
+        Parameters
+        ----------
+        psms : PsmContainer
+            PSM container object.
+        results : mokapot.Results
+            Rescoring results.
+        models : list
+            Trained models.
+        output_dir : str, optional
+            Output directory.
+        file_root : str, optional
+            Root name for output files.
         """
         output_dir = output_dir if output_dir is not None else self.output_dir
 
@@ -144,14 +201,20 @@ class Pipeline:
 
     def visualize_results(self, psms, results, models, output_dir=None, sources=None):
         """
-        Visualize the results of the analysis pipeline.
+        Generate and save visualizations for the analysis results.
 
-        Parameters:
-            psms (PsmContainer): The PSM container object.
-            results (mokapot.Results): The rescoring results.
-            models (list): The trained models used for rescoring.
-            output_dir (str, optional): Directory to save visualizations to.
-            sources (list, optional): Sources of features to include in visualizations.
+        Parameters
+        ----------
+        psms : PsmContainer
+            PSM container object.
+        results : mokapot.Results
+            Rescoring results.
+        models : list
+            Trained models.
+        output_dir : str, optional
+            Output directory.
+        sources : list, optional
+            Feature sources to include in visualizations.
         """
         if not self.visualization_enabled:
             logger.info("Visualization is disabled. Skipping...")
@@ -193,14 +256,21 @@ class Pipeline:
         """
         Run a single experiment with the specified configuration.
 
-        Parameters:
-            psms (PsmContainer): The PSM container object.
-            exp_config (dict): Configuration for this experiment.
-            exp_name (str): Name of the experiment.
-            exp_dir (str): Directory to save experiment results.
+        Parameters
+        ----------
+        psms : PsmContainer
+            PSM container object.
+        exp_config : dict
+            Experiment-specific configuration.
+        exp_name : str
+            Name of the experiment.
+        exp_dir : str
+            Output directory for the experiment.
 
-        Returns:
-            bool: True if experiment succeeded, False otherwise.
+        Returns
+        -------
+        bool
+            True if experiment succeeded, False otherwise.
         """
         try:
             os.makedirs(exp_dir, exist_ok=True)
@@ -262,7 +332,20 @@ class Pipeline:
             gc.collect()
 
     def run(self):
-        """Run the complete pipeline."""
+        """
+        Run the complete optiMHC pipeline (single run mode).
+
+        This method executes the full workflow: input parsing, feature generation, rescoring, saving, and visualization.
+
+        Returns
+        -------
+        psms : PsmContainer
+            PSM container object.
+        results : mokapot.Results
+            Rescoring results.
+        models : list
+            Trained models.
+        """
         logger.info("Starting analysis pipeline")
 
         psms = self.read_input()
@@ -276,11 +359,14 @@ class Pipeline:
 
     def run_experiments(self):
         """
-        Run experiments with different feature combinations using multiprocessing.
+        Run experiments with different feature/model combinations using multiprocessing.
 
         Each experiment is executed in its own process for complete resource isolation.
+        The experiment configurations must be provided in the config under the 'experiments' key.
 
-        Attention: The config must
+        Returns
+        -------
+        None
         """
         logger.info("Starting experiment mode with multiple feature combinations")
 

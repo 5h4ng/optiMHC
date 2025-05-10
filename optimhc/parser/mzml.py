@@ -8,15 +8,33 @@ logger = logging.getLogger(__name__)
 
 def extract_mzml_data(mzml_filename, scan_ids=None):
     """
-    Extracts scan data from an mzML file, including retention time, charge state, m/z values, and intensities.
-    Allows filtering specific scan IDs.
+    Extract scan data from an mzML file.
 
-    Parameters:
-        mzml_filename (str): The path to the mzML file.
-        scan_ids (list[int] or None): A list of scan IDs to extract. If None, extracts all scans.
+    Parameters
+    ----------
+    mzml_filename : str
+        The path to the mzML file.
+    scan_ids : list[int] or None, optional
+        A list of scan IDs to extract. If None, extracts all scans.
 
-    Returns:
-        pd.DataFrame: A DataFrame containing the extracted scan data.
+    Returns
+    -------
+    pd.DataFrame
+        A DataFrame containing the extracted scan data with columns:
+        - source: The source file name
+        - scan: The scan ID
+        - mz: The m/z values array
+        - intensity: The intensity values array
+        - charge: The charge state
+        - retention_time: The retention time
+
+    Notes
+    -----
+    This function:
+    1. Reads the mzML file using pyteomics
+    2. Extracts scan data including retention time, charge state, m/z values, and intensities
+    3. Filters scans based on provided scan IDs if specified
+    4. Returns a DataFrame with the extracted data
     """
     filename = mzml_filename.split("/")[-1].replace(".mzML", "")
     logger.info(f"Extracting scans from {mzml_filename}")

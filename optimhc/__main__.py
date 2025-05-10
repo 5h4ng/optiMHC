@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from optimhc.cli import main
+from optimhc.cli import cli
 
 if __name__ == "__main__":
-    main()
+    cli()
