@@ -6,17 +6,13 @@ from .base_feature_generator import BaseFeatureGenerator
 import pandas as pd
 from mhctools import NetMHCpan41
 from typing import List, Dict, Optional
-from .. import utils
+from optimhc import utils
 import logging
 from multiprocessing import Pool, cpu_count
 from functools import partial
 from tqdm import tqdm
 
-
 logger = logging.getLogger(__name__)
-logging.getLogger("mhctools").setLevel(logging.CRITICAL)
-logging.getLogger("mhctools").disabled = True
-
 
 # Helper function for multiprocessing
 def _predict_peptide_chunk(

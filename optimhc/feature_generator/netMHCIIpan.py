@@ -13,8 +13,6 @@ from functools import partial
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
-logging.getLogger("mhctools").setLevel(logging.CRITICAL)
-logging.getLogger("mhctools").disabled = True
 
 
 def _predict_peptide_chunk_class2(

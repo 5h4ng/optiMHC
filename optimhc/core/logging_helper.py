@@ -1,7 +1,6 @@
 import logging
 
-
-def setup_loggers(log_file=None):
+def setup_loggers(log_file=None, log_level="INFO"):
     """
     Create or update all loggers so that each logger has a StreamHandler and optionally a FileHandler.
     This ensures all log messages are displayed in the console and optionally saved to a file.
@@ -10,16 +9,33 @@ def setup_loggers(log_file=None):
     ----------
     log_file : str, optional
         Path to the log file. If None, no file logging is set up.
+    log_level : str, optional
+        Logging level (DEBUG, INFO, WARNING, ERROR). Default is "INFO".
     """
+    # Disable mhctools logging, avoid the warning message when multiprocessing
+    for logger_name in ["mhctools", "mhctools.base_commandline_predictor", 
+                       "mhctools.netmhc", "mhctools.netmhciipan"]:
+        logger = logging.getLogger(logger_name)
+        logger.disabled = True
+        logger.propagate = False
+        logger.setLevel(logging.CRITICAL)
+    
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
+    level = getattr(logging, log_level.upper(), logging.INFO)
+    
+    #debug_logging()
+    
     for lg in loggers:
+        if lg.name.startswith("mhctools"):
+            continue
+            
         lg.disabled = False
         has_stream_handler = any(
             isinstance(handler, logging.StreamHandler) for handler in lg.handlers
         )
         if not has_stream_handler:
             console_handler = logging.StreamHandler()
-            console_handler.setLevel(logging.INFO)
+            console_handler.setLevel(level)
             formatter = logging.Formatter(
                 "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
             )
@@ -32,7 +48,7 @@ def setup_loggers(log_file=None):
             )
             if not has_file_handler:
                 file_handler = logging.FileHandler(log_file, mode="a")
-                file_handler.setLevel(logging.INFO)
+                file_handler.setLevel(level)
                 formatter = logging.Formatter(
                     "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
                 )
@@ -40,12 +56,14 @@ def setup_loggers(log_file=None):
                 lg.addHandler(file_handler)
 
         lg.propagate = False
+        lg.setLevel(level)
 
         if lg.name.startswith("optimhc"):
             lg.disabled = False
 
     root_logger = logging.getLogger()
     root_logger.disabled = False
+    root_logger.setLevel(level)
 
 
 def debug_logging():

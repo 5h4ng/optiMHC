@@ -218,7 +218,7 @@ def generate_features(psms, config):
                 gc.collect()
 
             elif generator_type == "DeepLC":
-                #from optimhc.feature_generator.DeepLC import DeepLCFeatureGenerator
+                from optimhc.feature_generator.DeepLC import DeepLCFeatureGenerator
                 deeplc_generator = DeepLCFeatureGenerator(
                     psms,
                     calibration_criteria_column=generator_params.get(

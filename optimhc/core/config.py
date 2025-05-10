@@ -17,6 +17,7 @@ DEFAULT_CONFIG = {
     "numProcess": 4,
     "removePreNxtAA": False,
     "showProgress": True,
+    "logLevel": "INFO",
     "rescore": {"testFDR": 0.01, "model": "Percolator", "numJobs": 1},
 }
 

@@ -706,7 +706,8 @@ class PWMFeatureGenerator(BaseFeatureGenerator):
                         f"Missing {col} for {na_count} peptides. Using median for imputation."
                     )
                     median_val = features_df[col].median()
-                    features_df[col].fillna(median_val, inplace=True)
+                    features_df.loc[:, col] = features_df[col].fillna(median_val)
+                    features_df[col] = features_df[col].infer_objects(copy=False)
 
         features_df.drop(columns=["clean_peptide"], inplace=True)
 

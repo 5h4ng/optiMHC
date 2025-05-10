@@ -62,7 +62,7 @@ class Pipeline:
         self.experiment = self.config.get("experimentName", "optimhc_experiment")
         self.output_dir = os.path.join(self.config["outputDir"], self.experiment)
         os.makedirs(self.output_dir, exist_ok=True)
-        setup_loggers(os.path.join(self.output_dir, "log"))
+        setup_loggers(os.path.join(self.output_dir, "log"), self.config.get("logLevel", "INFO"))
 
         self.visualization_enabled = self.config.get("visualization", True)
         self.save_models = self.config.get("saveModels", True)

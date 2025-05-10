@@ -4,7 +4,7 @@
 
 ## Usage
 
-#### Using a YAML Configuration File (Recommended)
+### Using a YAML Configuration File (Recommended)
 
 ```bash
 optimhc pipeline --config /path/to/config.yaml
@@ -40,6 +40,7 @@ allele: []
 numProcess: 4
 removePreNxtAA: False
 showProgress: True
+logLevel: INFO  # Logging level (DEBUG, INFO, WARNING, ERROR)
 rescore:
   testFDR: 0.01
   model: Percolator
@@ -48,7 +49,7 @@ rescore:
 
 </details>
 
-#### Using Direct Command-Line Parameters (Optional)
+### Using Direct Command-Line Parameters (Optional)
 
 ```bash
 optimhc pipeline \
@@ -59,6 +60,7 @@ optimhc pipeline \
   --visualization \
   --numProcesses 32 \
   --allele HLA-A*02:02 \
+  --logLevel INFO \
   --featureGenerator '{"name": "Basic"}' \
   --testFDR 0.01 \
   --model Percolator
@@ -140,7 +142,7 @@ The `--featureGenerator` option accepts JSON formatted strings that define the f
 
 </details>
 
-#### Full CLI Help
+### Full CLI Help
 
 ```bash
 optimhc --help
@@ -166,7 +168,8 @@ The pipeline is configured using a YAML file. This file defines the input settin
 | `visualization`     | Boolean            | `True`                                                           | Enable or disable generation of visualization plots.                  |
 | `removePreNxtAA`    | Boolean            | `False`                                                          | Remove pre/post neighboring amino acids in sequence processing.         |
 | `numProcesses`      | Integer            | `32`                                                             | Number of parallel processes to use.                               |
-| `showProgress`      | Boolean            | `True`                                                           | Show progress information during execution.                           |
+| `showProgress`      | Boolean            | `True`                                                           | Show progress information during execution.     
+| `logLevel`          | String             | `INFO`                                                           | Logging level (DEBUG, INFO, WARNING, ERROR). Default is "INFO".
 | `modificationMap`   | Dictionary         | `{ '147.035385': 'UNIMOD:35' }`                                    | Maps modification masses to their 'UNIMOD' identifiers. See https://www.unimod.org/ for details           |
 | `allele`            | List               | `[HLA-A*02:02]`                                                  | List of alleles for which predictions will be computed.                 |
 | `featureGenerator`  | List of Dictionaries | See table below                                                  | List of feature generator configurations (each with a `name` and optional `params`). |
@@ -187,7 +190,7 @@ Each feature generator is specified with its `name` and an optional `params` sub
 | `PWM`               | `class: I`                                                                                                                   | Generates position weight matrix features for MHC class I and class II peptides.                        |
 | `MHCflurry`         | N/A                                                                                                                          | Predicts class I binding affinities using the MHCflurry model.                                     |
 | `NetMHCpan`         | N/A                                                                                                                          | Predicts class I peptide-MHC binding affinity using NetMHCpan.                                     |
-| `NetMHCIIpnan` | N/A                                                                                                                          | Predicts class II peptide-MHC binding affinity using NetMHCIIpan.                                   |
+| `NetMHCIIpan` | N/A                                                                                                                          | Predicts class II peptide-MHC binding affinity using NetMHCIIpan.                                   |
 ---
 
 ### Rescore Settings
