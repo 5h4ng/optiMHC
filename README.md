@@ -1,41 +1,129 @@
-# README
+# optiMHC
+
+**optiMHC** is a rescoring pipeline for immunopeptidomics data. It enhances peptide identification by integrating multiple feature generators and machine learning-based rescoring. The package is modular, supports extensible feature generation, and provides both command-line and programmatic interfaces.
 
 ## Usage
 
-### Command-line Execution (Modern CLI)
-
-You can run optiMHC using either a YAML configuration file or by specifying parameters directly via the command line.
-
-#### Using a YAML Configuration File
+#### Using a YAML Configuration File (Recommended)
 
 ```bash
 optimhc pipeline --config /path/to/config.yaml
 ```
 
-Run in experiment mode:
+**Note:** The default configuration is stored in `optimhc/core/config.py`. Your custom configuration will override the default values.
 
-```bash
-optimhc experiment --config /path/to/config.yaml
+<!-- DEFAULT_CONFIG = {
+    "outputDir": "./results",
+    "inputType": "pepxml",
+    "inputFile": [],
+    "decoyPrefix": "DECOY_",
+    "visualization": True,
+    "saveModels": True,
+    "allele": [],
+    "numProcess": 32,
+    "removePreNxtAA": False,
+    "showProgress": True,
+    "rescore": {"testFDR": 0.01, "model": "Percolator", "numJobs": 1},
+} -->
+
+<details>
+<summary>Click to expand default configuration in YAML format</summary>
+
+```yaml
+outputDir: ./results
+inputType: pepxml
+inputFile: []
+decoyPrefix: DECOY_
+visualization: True
+saveModels: True
+allele: []
+numProcess: 4
+removePreNxtAA: False
+showProgress: True
+rescore:
+  testFDR: 0.01
+  model: Percolator
+  numJobs: 1
 ```
 
-#### Using Direct Command-Line Parameters
+</details>
+
+#### Using Direct Command-Line Parameters (Optional)
 
 ```bash
 optimhc pipeline \
-  --input-type pepxml \
-  --input-file ./data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml \
-  --decoy-prefix DECOY_ \
-  --output-dir ./results \
+  --inputType pepxml \
+  --inputFile ./data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml \
+  --decoyPrefix DECOY_ \
+  --outputDir ./results \
   --visualization \
-  --num-processes 32 \
+  --numProcesses 32 \
   --allele HLA-A*02:02 \
-  --feature-generator 'name: Basic' \
-  --feature-generator 'name: DeepLC' \
-  --test-fdr 0.01 \
+  --featureGenerator '{"name": "Basic"}' \
+  --featureGenerator '{"name": "DeepLC"}' \
+  --testFDR 0.01 \
   --model Percolator
 ```
 
-You can mix and override YAML config values with CLI parameters as needed.
+**Note:** If you use both YAML configuration file and command-line parameters, command-line parameters will override the corresponding values in the YAML configuration file. 
+
+#### Feature Generator Command-line Parameters
+
+The `--featureGenerator` option accepts JSON formatted strings that define the feature generator configuration. You can specify multiple feature generators by using the option multiple times. Here are some examples:
+
+1. Basic feature generator (no parameters):
+```bash
+--featureGenerator '{"name": "Basic"}'
+```
+
+2. SpectraSimilarity with parameters:
+```bash
+--featureGenerator '{
+  "name": "SpectraSimilarity",
+  "params": {
+    "mzmlDir": "./data",
+    "spectrumIdPattern": "(.+?)\.\d+\.\d+\.\d+",
+    "model": "AlphaPeptDeep_ms2_generic",
+    "collisionEnergy": 28,
+    "instrument": "LUMOS",
+    "tolerance": 20,
+    "numTopPeaks": 36,
+    "url": "koina.wilhelmlab.org:443"
+  }
+}'
+```
+
+3. Multiple feature generators:
+```bash
+--featureGenerator '{"name": "Basic"}' \
+--featureGenerator '{
+  "name": "SpectraSimilarity",
+  "params": {
+    "mzmlDir": "./data",
+    "model": "AlphaPeptDeep_ms2_generic"
+  }
+}' \
+--featureGenerator '{
+  "name": "DeepLC",
+  "params": {
+    "calibrationCriteria": "expect",
+    "lowerIsBetter": true,
+    "calibrationSize": 0.1
+  }
+}'
+```
+
+<details>
+<summary>Click to expand JSON format tips</summary>
+
+- Use single quotes (`'`) to wrap the entire JSON string
+- All JSON strings must be valid JSON format (e.g., use `true` instead of `True`, `false` instead of `False`)
+- For complex parameters, you can use a single line with proper escaping:
+```bash
+--featureGenerator '{"name":"SpectraSimilarity","params":{"mzmlDir":"./data","model":"AlphaPeptDeep_ms2_generic"}}'
+```
+
+</details>
 
 #### Full CLI Help
 
@@ -171,12 +259,3 @@ rescore:
 ```
 
 ---
-
-## Try It Yourself
-
-You can also run the test suite as a full example:
-
-```bash
-pytest tests/
-```
-

@@ -3,6 +3,7 @@ import sys
 import logging
 import click
 import yaml
+import json
 from optimhc.core import Pipeline
 from optimhc.core.config import Config
 
@@ -41,9 +42,9 @@ def parse_cli_config(**kwargs):
 @click.option('--removePreNxtAA/--keepPreNxtAA', default=None, help='Remove pre/post neighboring amino acids.')
 @click.option('--numProcesses', type=int, help='Number of parallel processes to use.')
 @click.option('--showProgress/--no-showProgress', default=None, help='Show progress information during execution.')
-@click.option('--modificationMap', type=str, help='YAML/JSON string mapping modification masses to UNIMOD IDs.')
+@click.option('--modificationMap', type=str, help='JSON string mapping modification masses to UNIMOD IDs.')
 @click.option('--allele', multiple=True, help='Alleles for which predictions will be computed.')
-@click.option('--featureGenerator', multiple=True, help='Feature generator names (YAML/JSON for params).')
+@click.option('--featureGenerator', multiple=True, help='Feature generator configuration in JSON format.')
 @click.option('--testFDR', type=float, help='FDR threshold for rescoring.')
 @click.option('--model', type=str, help='Model to use for rescoring.')
 @click.option('--numJobs', type=int, help='Number of parallel jobs for rescoring.')
@@ -59,15 +60,17 @@ def pipeline(**kwargs):
     config_path = kwargs.pop('config', None)
     cli_config = parse_cli_config(**kwargs)
 
-    # 处理特殊类型参数
+    # Parse JSON strings
     if 'modificationMap' in cli_config:
-        cli_config['modificationMap'] = yaml.safe_load(cli_config['modificationMap'])
+        cli_config['modificationMap'] = json.loads(cli_config['modificationMap'])
     if 'featureGenerator' in cli_config:
         fg = cli_config['featureGenerator']
         try:
-            cli_config['featureGenerator'] = yaml.safe_load('\n'.join(fg))
-        except Exception:
-            cli_config['featureGenerator'] = list(fg)
+            # Parse each feature generator config as JSON
+            cli_config['featureGenerator'] = [json.loads(f) for f in fg]
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON format in feature generator config: {e}")
+            raise
     if 'allele' in cli_config:
         cli_config['allele'] = list(cli_config['allele'])
     if 'inputFile' in cli_config:

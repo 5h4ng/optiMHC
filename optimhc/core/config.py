@@ -14,7 +14,7 @@ DEFAULT_CONFIG = {
     "visualization": True,
     "saveModels": True,
     "allele": [],
-    "numProcess": 32,
+    "numProcess": 4,
     "removePreNxtAA": False,
     "showProgress": True,
     "rescore": {"testFDR": 0.01, "model": "Percolator", "numJobs": 1},

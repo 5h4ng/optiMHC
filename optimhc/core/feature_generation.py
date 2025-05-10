@@ -33,6 +33,7 @@ def print_memory(prefix=""):
     logger.debug(f"{prefix} Memory usage: {mem:.2f} MB")
 
 
+# TODO: refactor the code to pass config as a parameter to the generators
 def generate_features(psms, config):
     """
     Generate features from different generators according to the configuration.
