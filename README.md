@@ -145,7 +145,7 @@ The pipeline is configured using a YAML file. This file defines the input settin
 |---------------------|--------------------|------------------------------------------------------------------|-------------------------------------------------------------------------|
 | `experimentName`    | String             | `classI_example`                                                 | Name of the experiment and output subdirectory name.                  |
 | `inputType`         | String             | `pepxml`                                                         | Type of input file. Supported values: `pepxml`, `pin`.                  |
-| `inputFile`         | String or List     | `./data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml`        | Path(s) to the input PSM file(s).                                       |
+| `inputFile`         | String or List     | `./data/xxx.pep.xml`        | Path(s) to the input PSM file(s).                                       |
 | `decoyPrefix`       | String             | `DECOY_`                                                         | Prefix used to identify decoy sequences.                              |
 | `outputDir`         | String             | `./results`                                                      | Base directory where output files, logs and figures are stored.         |
 | `visualization`     | Boolean            | `True`                                                           | Enable or disable generation of visualization plots.                  |
