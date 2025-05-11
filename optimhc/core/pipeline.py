@@ -59,6 +59,7 @@ class Pipeline:
             self.config = config
         else:
             self.config = Config(config)
+        self.config.validate()
         self.experiment = self.config.get("experimentName", "optimhc_experiment")
         self.output_dir = os.path.join(self.config["outputDir"], self.experiment)
         os.makedirs(self.output_dir, exist_ok=True)

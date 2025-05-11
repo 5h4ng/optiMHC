@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 
 @click.group()
 def cli():
-    """optiMHC - A rescoring pipeline for immunopeptidomics data."""
+    """
+    optiMHC - A high-performance rescoring pipeline for immunopeptidomics data.
+    """
     pass
 
 def parse_cli_config(**kwargs):
@@ -39,7 +41,7 @@ def parse_cli_config(**kwargs):
     "--inputFile",
     type=click.Path(exists=True),
     multiple=True,
-    help="Path to input PSM file(s)",
+    help="Path(s) to input PSM file(s). Can be specified multiple times for multiple files.",
 )
 @click.option(
     "--decoyPrefix",
@@ -142,6 +144,7 @@ def pipeline(
         pipeline_config["rescore"]["model"] = model
 
     # Run pipeline
+    pipeline_config.validate()
     pipeline = Pipeline(pipeline_config)
     pipeline.run()
 

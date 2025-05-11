@@ -184,6 +184,24 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 
+### Cursor Editor ###
+# Cursor editor directory
+.cursor/
+# Cursor workspace settings
+.cursor-workspace
+# Cursor temporary files
+.cursor-temp/
+# Cursor cache files
+.cursor-cache/
+# Cursor history files
+.cursor-history/
+# Cursor backup files
+*.cursor-backup
+# Cursor state files
+.cursor-state/
+# Cursor rules directory
+.cursor/rules/
+
 ### Python Patch ###
 # Poetry local configuration file - https://python-poetry.org/docs/configuration/#local-configuration
 poetry.toml

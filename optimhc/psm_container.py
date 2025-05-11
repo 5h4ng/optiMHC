@@ -125,6 +125,11 @@ class PsmContainer:
                         )
 
         check_rescoring_features(rescoring_features)
+        
+        # check if the number of decoy psms is not 0
+        if len(self.decoy_psms) == 0:
+            logger.error("No decoy PSMs found. Please check the decoy prefix.")
+            raise ValueError("No decoy PSMs found.")
 
         logger.info("PsmContainer initialized with %d PSM entries.", len(self._psms))
         if self.ms_data_file_column:
@@ -136,6 +141,7 @@ class PsmContainer:
         logger.info("decoy psms: %d", len(self.decoy_psms))
         logger.info("unique peptides: %d", len(np.unique(self.peptides)))
         logger.info("rescoing features: %s", rescoring_features)
+        
 
     @property
     def psms(self) -> pd.DataFrame:

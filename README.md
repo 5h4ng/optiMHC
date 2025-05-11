@@ -2,9 +2,15 @@
 
 **optiMHC** is a rescoring pipeline for immunopeptidomics data. It enhances peptide identification by integrating multiple feature generators and machine learning-based rescoring. The package is modular, supports extensible feature generation, and provides both command-line and programmatic interfaces.
 
+## Quick Start
+
+> TODO
+
 ## Usage
 
 ### Using a YAML Configuration File (Recommended)
+
+Using a YAML configuration file is recommended because it provides a more flexible and user-friendly way to configure the pipeline.
 
 ```bash
 optimhc pipeline --config /path/to/config.yaml
@@ -12,151 +18,9 @@ optimhc pipeline --config /path/to/config.yaml
 
 **Note:** The default configuration is stored in `optimhc/core/config.py`. Your custom configuration will override the default values.
 
-<!-- DEFAULT_CONFIG = {
-    "outputDir": "./results",
-    "inputType": "pepxml",
-    "inputFile": [],
-    "decoyPrefix": "DECOY_",
-    "visualization": True,
-    "saveModels": True,
-    "allele": [],
-    "numProcess": 32,
-    "removePreNxtAA": False,
-    "showProgress": True,
-    "rescore": {"testFDR": 0.01, "model": "Percolator", "numJobs": 1},
-} -->
+#### Configuration Parameters
 
-<details>
-<summary>Click to expand default configuration in YAML format</summary>
-
-```yaml
-outputDir: ./results
-inputType: pepxml
-inputFile: []
-decoyPrefix: DECOY_
-visualization: True
-saveModels: True
-allele: []
-numProcess: 4
-removePreNxtAA: False
-showProgress: True
-logLevel: INFO  # Logging level (DEBUG, INFO, WARNING, ERROR)
-rescore:
-  testFDR: 0.01
-  model: Percolator
-  numJobs: 1
-```
-
-</details>
-
-### Using Direct Command-Line Parameters (Optional)
-
-```bash
-optimhc pipeline \
-  --inputType pepxml \
-  --inputFile ./data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml \
-  --decoyPrefix DECOY_ \
-  --outputDir ./results \
-  --visualization \
-  --numProcesses 32 \
-  --allele HLA-A*02:02 \
-  --logLevel INFO \
-  --featureGenerator '{"name": "Basic"}' \
-  --testFDR 0.01 \
-  --model Percolator
-```
-
-**Note:** If you use both YAML configuration file and command-line parameters, command-line parameters will override the corresponding values in the YAML configuration file. 
-
-#### Feature Generator Command-line Parameters
-
-The `--featureGenerator` option accepts JSON formatted strings that define the feature generator configuration. You can specify multiple feature generators by using the option multiple times. Here are some examples:
-
-
-<details>
-<summary>Basic feature generator (no parameters)</summary>
-
-```bash
---featureGenerator '{"name": "Basic"}'
-```
-
-</details>
-
-
-<details>
-<summary>SpectraSimilarity with parameters</summary>
-
-```bash
---featureGenerator '{
-  "name": "SpectraSimilarity",
-  "params": {
-    "mzmlDir": "./data",
-    "spectrumIdPattern": "(.+?)\.\d+\.\d+\.\d+",
-    "model": "AlphaPeptDeep_ms2_generic",
-    "collisionEnergy": 28,
-    "instrument": "LUMOS",
-    "tolerance": 20,
-    "numTopPeaks": 36,
-    "url": "koina.wilhelmlab.org:443"
-  }
-}'
-```
-
-</details>
-
-
-<details>
-<summary>Multiple feature generators</summary>
-
-```bash
---featureGenerator '{"name": "Basic"}' \
---featureGenerator '{
-  "name": "SpectraSimilarity",
-  "params": {
-    "mzmlDir": "./data",
-    "model": "AlphaPeptDeep_ms2_generic"
-  }
-}' \
---featureGenerator '{
-  "name": "DeepLC",
-  "params": {
-    "calibrationCriteria": "expect",
-    "lowerIsBetter": true,
-    "calibrationSize": 0.1
-  }
-}'
-```
-
-</details>
-
-
-<details>
-<summary>Some tips for JSON format</summary>
-
-- Use single quotes (`'`) to wrap the entire JSON string
-- All JSON strings must be valid JSON format (e.g., use `true` instead of `True`, `false` instead of `False`)
-- For complex parameters, you can use a single line with proper escaping:
-```bash
---featureGenerator '{"name":"SpectraSimilarity","params":{"mzmlDir":"./data","model":"AlphaPeptDeep_ms2_generic"}}'
-```
-
-</details>
-
-### Full CLI Help
-
-```bash
-optimhc --help
-optimhc pipeline --help
-optimhc experiment --help
-```
-
----
-
-## YAML Configuration File
-
-The pipeline is configured using a YAML file. This file defines the input settings, the list of feature generators, rescore parameters, and (optionally) experiment configurations. Below you will find a table summarizing the main configuration parameters along with examples and descriptions.
-
-### Configuration Parameters
+The pipeline can be configured by using a YAML file. This file defines the input settings, the list of feature generators, rescore parameters, and (optionally) experiment configurations. Below you will find a table summarizing the main configuration parameters along with examples and descriptions.
 
 | Parameter           | Type               | Example                                                          | Description                                                             |
 |---------------------|--------------------|------------------------------------------------------------------|-------------------------------------------------------------------------|
@@ -175,9 +39,7 @@ The pipeline is configured using a YAML file. This file defines the input settin
 | `featureGenerator`  | List of Dictionaries | See table below                                                  | List of feature generator configurations (each with a `name` and optional `params`). |
 | `rescore`           | Dictionary         | See table below                                                 | Rescore settings including FDR threshold, model and number of jobs.     |
 
----
-
-### Feature Generator Configurations
+#### Feature Generator Configurations
 
 Each feature generator is specified with its `name` and an optional `params` subsection. Some common generators include:
 
@@ -191,9 +53,8 @@ Each feature generator is specified with its `name` and an optional `params` sub
 | `MHCflurry`         | N/A                                                                                                                          | Predicts class I binding affinities using the MHCflurry model.                                     |
 | `NetMHCpan`         | N/A                                                                                                                          | Predicts class I peptide-MHC binding affinity using NetMHCpan.                                     |
 | `NetMHCIIpan` | N/A                                                                                                                          | Predicts class II peptide-MHC binding affinity using NetMHCIIpan.                                   |
----
 
-### Rescore Settings
+#### Rescore Settings
 
 Rescore parameters control how the rescoring step is executed and include:
 
@@ -203,21 +64,7 @@ Rescore parameters control how the rescoring step is executed and include:
 | `model`    | String  | `Percolator`| Model to use for rescoring (valid options include `Percolator`, `XGBoost`, or `RandomForest`). |
 | `numJobs`  | Integer | `4`         |The number of parallel jobs to run. This value is passed to Scikit-learn's n_jobs parameter to control parallelism for model training or scoring. Set to -1 to use all available CPU cores.                   |
 
----
-
-### Experiment Mode (Optional)
-
-When running in experiment mode, the YAML file can include an `experiments` section that defines multiple experiments with different feature combinations and models. Each experiment entry uses the following parameters:
-
-| Parameter | Type   | Example                                                                                       | Description                                                              |
-|-----------|--------|-----------------------------------------------------------------------------------------------|--------------------------------------------------------------------------|
-| `name`    | String | `"Baseline"`                                                                                  | Name of the experiment; also used to create a dedicated output directory. |
-| `source`  | List   | `["Original", "Basic", "DeepLC"]`                                                             | List of feature source names to include in the experiment.               |
-| `model`   | String | `"Percolator"` or `"XGBoost"`                                                                 | Rescoring model to use for the experiment.                                |
-
----
-
-### Example YAML Configuration
+#### Example YAML Configuration
 
 Below is an example YAML configuration for class I based on the latest pipeline version:
 
@@ -276,4 +123,107 @@ rescore:
   numJobs: 4
 ```
 
----
+### Using Direct Command-Line Parameters (Optional)
+
+While we recommend using the YAML configuration file, you can also use command-line parameters to configure the pipeline:
+
+```bash
+optimhc pipeline \
+  --inputType pepxml \
+  --inputFile ./data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml \
+  --decoyPrefix DECOY_ \
+  --outputDir ./results \
+  --visualization \
+  --numProcesses 32 \
+  --allele HLA-A*02:02 \
+  --logLevel INFO \
+  --featureGenerator '{"name": "Basic"}' \
+  --testFDR 0.01 \
+  --model Percolator
+```
+
+**Note:** If you use both YAML configuration file and command-line parameters, command-line parameters will override the corresponding values in the YAML configuration file. 
+
+#### Feature Generator Command-line Parameters 
+
+The `--featureGenerator` option accepts JSON formatted strings that define the feature generator configuration. You can specify multiple feature generators by using the option multiple times. 
+
+But be careful that if you use `--featureGenerator` in command-line, all your feature generator configurations in YAML file (`--config`) will be ignored.
+
+Thus, **rather than using both methods simultaneously, use either command-line arguments or YAML for feature generator configuration.**
+
+Here are some examples:
+
+<details>
+<summary>Basic feature generator (no parameters)</summary>
+
+```bash
+--featureGenerator '{"name": "Basic"}'
+```
+
+</details>
+
+<details>
+<summary>SpectraSimilarity with parameters</summary>
+
+```bash
+--featureGenerator '{
+  "name": "SpectraSimilarity",
+  "params": {
+    "mzmlDir": "./data",
+    "spectrumIdPattern": "(.+?)\.\d+\.\d+\.\d+",
+    "model": "AlphaPeptDeep_ms2_generic",
+    "collisionEnergy": 28,
+    "instrument": "LUMOS",
+    "tolerance": 20,
+    "numTopPeaks": 36,
+    "url": "koina.wilhelmlab.org:443"
+  }
+}'
+```
+
+</details>
+
+<details>
+<summary>Multiple feature generators</summary>
+
+```bash
+--featureGenerator '{"name": "Basic"}' \
+--featureGenerator '{
+  "name": "SpectraSimilarity",
+  "params": {
+    "mzmlDir": "./data",
+    "model": "AlphaPeptDeep_ms2_generic"
+  }
+}' \
+--featureGenerator '{
+  "name": "DeepLC",
+  "params": {
+    "calibrationCriteria": "expect",
+    "lowerIsBetter": true,
+    "calibrationSize": 0.1
+  }
+}'
+```
+
+</details>
+
+<details>
+<summary>Some tips for JSON format</summary>
+
+- Use single quotes (`'`) to wrap the entire JSON string
+- All JSON strings must be valid JSON format (e.g., use `true` instead of `True`, `false` instead of `False`)
+- For complex parameters, you can use a single line with proper escaping:
+```bash
+--featureGenerator '{"name":"SpectraSimilarity","params":{"mzmlDir":"./data","model":"AlphaPeptDeep_ms2_generic"}}'
+```
+
+</details>
+
+### Full CLI Help
+
+```bash
+optimhc --help
+optimhc pipeline --help
+optimhc experiment --help
+```
