@@ -177,7 +177,7 @@ class PsmContainer:
         pd.DataFrame
             DataFrame with only target PSMs (label = True).
         """
-        return self._psms[self._psms[self.label_column] == True]
+        return self._psms[self._psms[self.label_column] == True].copy()
 
     @property
     def decoy_psms(self) -> pd.DataFrame:
@@ -189,7 +189,7 @@ class PsmContainer:
         pd.DataFrame
             DataFrame with only decoy PSMs (label = False).
         """
-        return self._psms[self._psms[self.label_column] == False]
+        return self._psms[self._psms[self.label_column] == False].copy()
 
     @property
     def columns(self) -> List[str]:
@@ -201,7 +201,7 @@ class PsmContainer:
         list of str
             List of column names.
         """
-        return self._psms.columns
+        return list(self._psms.columns)
 
     @property
     def feature_columns(self) -> List[str]:
@@ -285,7 +285,7 @@ class PsmContainer:
         pd.Series
             Series containing metadata for each PSM.
         """
-        return self._psms[self.metadata_column]
+        return self._psms[self.metadata_column].copy()
 
     @property
     def spectrum_ids(self) -> List[str]:
@@ -479,8 +479,12 @@ class PsmContainer:
         source: str,
         suffix: Optional[str] = None,
     ) -> None:
-        """
-        Merge new features into the PSM DataFrame based on specified columns.
+        """Merge new features into the PSM DataFrame based on specified columns.
+
+        This method performs a left join between the PSM data and feature data,
+        ensuring that all PSMs are preserved while adding new features. It handles
+        column name conflicts through optional suffixing and maintains feature source
+        tracking.
 
         Parameters
         ----------
@@ -491,9 +495,71 @@ class PsmContainer:
         feature_key : str or list of str
             Column name(s) in the features data to merge on.
         source : str
-            Name of the source of the new features.
+            Name of the source of the new features (e.g., 'deeplc', 'netmhc').
         suffix : str, optional
             Suffix to add to the new columns if there's a name conflict.
+            Required when new feature columns have the same names as existing columns.
+            For example, if adding features from different sources (e.g., 'score' from
+            DeepLC and NetMHC), use suffixes like '_deeplc' or '_netmhc' to distinguish them.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        ValueError
+            If duplicate columns exist without suffix.
+            If merging features changes the number of PSMs.
+
+        Notes
+        -----
+        The method follows these steps:
+        1. Validates input and prepares merge keys
+        2. Checks for column name conflicts
+        3. Manages feature source: if the source already exists, it will be overwritten
+        4. Performs left join merge
+        5. Verifies data integrity
+
+        Suffix Usage
+        -----------
+        The suffix parameter is used to handle column name conflicts:
+        - When adding features from different sources that might have the same column names
+        - When you want to keep both the original and new features with the same name
+        - When you need to track the source of features in the column names
+
+        If suffix is not provided and there are duplicate column names:
+        - The method will raise a ValueError
+        - You must either provide a suffix or rename the columns before adding
+
+        Examples
+        --------
+        >>> container = PsmContainer(...)
+        >>> # Adding features without suffix (no conflicts)
+        >>> features_df1 = pd.DataFrame({
+        ...     'scan': [1, 2, 3],
+        ...     'feature1': [0.1, 0.2, 0.3],
+        ...     'feature2': [0.4, 0.5, 0.6]
+        ... })
+        >>> container.add_features(
+        ...     features_df1,
+        ...     psms_key='scan',
+        ...     feature_key='scan',
+        ...     source='source1'
+        ... )
+        >>> # Adding features with suffix (handling conflicts)
+        >>> features_df2 = pd.DataFrame({
+        ...     'scan': [1, 2, 3],
+        ...     'score': [0.8, 0.9, 0.7],  # This would conflict with existing 'score'
+        ...     'feature3': [0.7, 0.8, 0.9]
+        ... })
+        >>> container.add_features(
+        ...     features_df2,
+        ...     psms_key='scan',
+        ...     feature_key='scan',
+        ...     source='source2',
+        ...     suffix='_new'  # 'score' becomes 'score_new'
+        ... )
         """
         if isinstance(psms_key, str):
             psms_key = [psms_key]
@@ -518,8 +584,8 @@ class PsmContainer:
         logger.info(f"Adding {len(new_feature_cols)} new features from {source}.")
 
         if not new_feature_cols:
-            logger.warning("No new features to add.")
-            raise ValueError("No new features to add.")
+            logger.warning("No new features to add. Check the feature key and PSMs key.")
+            logger.warning(f"Feature key: {feature_key}; PSMs key: {psms_key}")
 
         if source in self.rescoring_features:
             logger.warning(
