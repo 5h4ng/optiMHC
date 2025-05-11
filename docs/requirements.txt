@@ -1,0 +1,5 @@
+sphinx
+sphinx_rtd_theme
+sphinx-autodoc-typehints
+sphinxcontrib-napoleon
+nbsphinx
