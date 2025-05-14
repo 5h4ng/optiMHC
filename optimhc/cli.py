@@ -164,5 +164,59 @@ def experiment(config):
     pipeline = Pipeline(pipeline_config)
     pipeline.run_experiments()
 
+@cli.command()
+def gui():
+    """Launch the optiMHC GUI."""
+    try:
+        import streamlit
+    except ImportError:
+        print("Error: Streamlit is not installed. Install GUI dependencies with:")
+        print("pip install optimhc[gui]")
+        return
+    
+    import subprocess
+    import sys
+    import os
+    
+    # Get the path to the GUI app
+    gui_path = os.path.join(os.path.dirname(__file__), "gui", "app.py")
+    
+    if not os.path.exists(gui_path):
+        print(f"Error: GUI application not found at {gui_path}")
+        return
+    
+    # Create a temporary launcher script that uses the correct imports
+    import tempfile
+    
+    launcher_content = """
+import os
+import sys
+import streamlit
+
+# Add the root directory to the path
+sys.path.insert(0, '{}')
+
+# Import the app module properly
+from optimhc.gui.app import main
+
+if __name__ == "__main__":
+    main()
+    """.format(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+    
+    fd, temp_path = tempfile.mkstemp(suffix='.py')
+    with os.fdopen(fd, 'w') as f:
+        f.write(launcher_content)
+    
+    # Launch Streamlit with the temporary script
+    print("Starting optiMHC GUI...")
+    try:
+        subprocess.run([sys.executable, "-m", "streamlit", "run", temp_path])
+    finally:
+        # Clean up the temporary file
+        try:
+            os.unlink(temp_path)
+        except:
+            pass
+
 if __name__ == "__main__":
     cli()
