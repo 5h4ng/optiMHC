@@ -4,7 +4,19 @@
 
 ## Quick Start
 
-> TODO
+### Installation
+
+```bash
+pip install optimhc
+```
+
+Or install from source:
+
+```bash
+git clone https://github.com/5h4ng/optiMHC.git
+cd optiMHC
+pip install -e .
+```
 
 ## Usage
 
@@ -219,6 +231,14 @@ Here are some examples:
 ```
 
 </details>
+
+### GUI (Experimental)
+
+```bash
+optimhc gui
+```
+
+
 
 ### Full CLI Help
 
