@@ -297,6 +297,14 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
                             f"Error during Koina prediction for batch with peptide length {peptide_length}: {batch_error}"
                         )
                         logger.error(f"Batch data:\n{group}")
+                        # # Save the batch data for debugging
+                        # group.to_csv(
+                        #     f"batch_error_peptide_length_{peptide_length}.csv",
+                        #     index=False,
+                        # )
+                        # logger.error(
+                        #     f"Batch data saved to batch_error_peptide_length_{peptide_length}.csv"
+                        # )
                         raise
                 predictions = pd.concat(predictions_batches, ignore_index=True)
             else:

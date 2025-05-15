@@ -177,7 +177,7 @@ class Config:
         - Output directory creation
         - Rescore configuration validity (TODO)
         - Feature generator configuration primitive validity (TODO)
-        - Optional parameter validity (TODO)
+        - Optional parameter validity (TODO): we should validate 'allele' first !!!
         """
         if not isinstance(self._config, dict):
             raise ValueError("Configuration must be a dictionary")

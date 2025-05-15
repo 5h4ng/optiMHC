@@ -226,7 +226,10 @@ def generate_features(psms, config):
                     ),
                     lower_score_is_better=generator_params.get("lowerIsBetter"),
                     calibration_set_size=generator_params.get("calibrationSize", 0.1),
-                    processes=n_processes,
+                    processes=n_processes, 
+                    # TODO: Check here carefully
+                    # Since DeepLC is GPU-based, 
+                    # the processes here is not the same meaning as the n_processes in multi-threading
                     model_path=generator_params.get("model_path", None),
                     remove_pre_nxt_aa=remove_pre_nxt_aa,
                     mod_dict=mod_dict,

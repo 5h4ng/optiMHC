@@ -41,9 +41,9 @@ def render():
     # Check pipeline status
     running, return_code = check_pipeline_status()
     
-    # Show log monitor if process exists
+    # Show log viewer if process exists
     if "pipeline_process" in st.session_state and st.session_state.pipeline_process:
-        log_monitor(st.session_state.pipeline_process)
+        log_viewer(st.session_state.pipeline_process)
     
     # Navigation buttons
     col1, col2 = st.columns(2)
