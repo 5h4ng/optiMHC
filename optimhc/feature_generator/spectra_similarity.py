@@ -11,9 +11,45 @@ from optimhc.feature_generator.base_feature_generator import BaseFeatureGenerato
 from optimhc import utils
 from optimhc.parser import extract_mzml_data
 from koinapy import Koina
+import numba
+from numba import jit
 
 logger = logging.getLogger(__name__)
 
+@njit
+def _align_spectra_numba(
+    exp_mz_sorted,
+    exp_intensity_sorted,
+    pred_mz_sorted,
+    pred_intensity_sorted,
+    tolerance_ppm
+):
+    n_pred = len(pred_mz_sorted)
+    aligned_exp_intensity = np.zeros(n_pred)
+    matched_indices = []
+    start_pos = 0
+    for i in range(n_pred):
+        pred_peak_mz = pred_mz_sorted[i]
+        fragment_min = pred_peak_mz * (1 - tolerance_ppm / 1e6)
+        fragment_max = pred_peak_mz * (1 + tolerance_ppm / 1e6)
+        matched_int = 0.0
+        matched_exp_idx = -1
+        past_start = 0
+        while start_pos + past_start < len(exp_mz_sorted):
+            exp_peak_mz = exp_mz_sorted[start_pos + past_start]
+            if exp_peak_mz < fragment_min:
+                start_pos += 1
+            elif exp_peak_mz <= fragment_max:
+                exp_peak_int = exp_intensity_sorted[start_pos + past_start]
+                if exp_peak_int > matched_int:
+                    matched_int = exp_peak_int
+                    matched_exp_idx = start_pos + past_start
+                past_start += 1
+            else:
+                break
+        aligned_exp_intensity[i] = matched_int
+        matched_indices.append((i, matched_exp_idx))
+    return aligned_exp_intensity, pred_intensity_sorted, matched_indices
 
 class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
     """
@@ -420,28 +456,11 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         use_ppm: bool = True,
     ) -> Tuple[np.ndarray, np.ndarray, List[Tuple], Dict]:
         """
-        Align experimental and predicted spectra.
-
-        Parameters:
-            exp_mz (List[float]): Experimental m/z values
-            exp_intensity (List[float]): Experimental intensity values
-            pred_mz (List[float]): Predicted m/z values
-            pred_intensity (List[float]): Predicted intensity values
-            pred_annotation (Optional[List[str]]): Predicted fragment annotations
-            use_ppm (bool): Whether to use ppm tolerance or Da tolerance
-
-        Returns:
-            Tuple[np.ndarray, np.ndarray, List[Tuple], Dict]:
-                - Aligned experimental intensity vector
-                - Predicted intensity vector
-                - Matching index pairs
-                - Additional info including original sorted arrays
+        Optimized version of spectra alignment using numba.
         """
-        # Sort both experimental and predicted spectra by m/z
         exp_mz_sorted, exp_intensity_sorted, _ = self._sort_spectrum_by_mz(
             exp_mz, exp_intensity
         )
-
         if pred_annotation is not None:
             pred_mz_sorted, pred_intensity_sorted, pred_annotation_sorted = (
                 self._sort_spectrum_by_mz(pred_mz, pred_intensity, pred_annotation)
@@ -450,46 +469,14 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
             pred_mz_sorted, pred_intensity_sorted, pred_annotation_sorted = (
                 self._sort_spectrum_by_mz(pred_mz, pred_intensity)
             )
-        aligned_exp_intensity = np.zeros(len(pred_mz_sorted))
-        aligned_pred_intensity = pred_intensity_sorted.copy()
-        matched_indices = []
-
-        start_pos = 0
-
-        for i, pred_peak_mz in enumerate(pred_mz_sorted):
-            if use_ppm:
-                fragment_min = pred_peak_mz * (1 - self.tolerance_ppm / 1e6)
-                fragment_max = pred_peak_mz * (1 + self.tolerance_ppm / 1e6)
-            else:
-                # If using Da tolerance, use a fixed window (typically ~0.05 Da)
-                tolerance = 0.05  # Default value
-                fragment_min = pred_peak_mz - tolerance
-                fragment_max = pred_peak_mz + tolerance
-
-            matched_int = 0
-            matched_exp_idx = None
-            past_start = 0
-
-            while start_pos + past_start < len(exp_mz_sorted):
-                exp_peak_mz = exp_mz_sorted[start_pos + past_start]
-                if exp_peak_mz < fragment_min:
-                    start_pos += 1
-                elif exp_peak_mz <= fragment_max:
-                    exp_peak_int = exp_intensity_sorted[start_pos + past_start]
-                    if exp_peak_int > matched_int:
-                        matched_int = exp_peak_int
-                        matched_exp_idx = start_pos + past_start
-                    past_start += 1
-                else:
-                    break
-
-            aligned_exp_intensity[i] = matched_int
-
-            # Record matching index pairs (pred_idx, exp_idx)
-            pred_idx = i
-            exp_idx = matched_exp_idx
-            matched_indices.append((pred_idx, exp_idx))
-
+        
+        aligned_exp_intensity, aligned_pred_intensity, matched_indices = _align_spectra_numba(
+            exp_mz_sorted,
+            exp_intensity_sorted,
+            pred_mz_sorted,
+            pred_intensity_sorted,
+            self.tolerance_ppm
+        )
         additional_info = {
             "exp_mz_sorted": exp_mz_sorted,
             "exp_intensity_sorted": exp_intensity_sorted,
@@ -497,13 +484,7 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
             "pred_intensity_sorted": pred_intensity_sorted,
             "pred_annotation_sorted": pred_annotation_sorted,
         }
-
-        return (
-            aligned_exp_intensity,
-            aligned_pred_intensity,
-            matched_indices,
-            additional_info,
-        )
+        return aligned_exp_intensity, aligned_pred_intensity, matched_indices, additional_info
 
     def _get_top_peaks_vectors(
         self,
