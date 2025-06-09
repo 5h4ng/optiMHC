@@ -1,10 +1,6 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,linux
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,linux
 
-### too large to be included in the repository ###
-examples/
-tests/
-CODE_REVIEW.md
 
 
 ### Linux ###
@@ -212,4 +208,6 @@ poetry.toml
 # LSP config files
 pyrightconfig.json
 
-# End of https://www.toptal.com/developers/gitignore/api/python,linux
+data/*.mzML
+data/*.pep.xml
+data/compressed/*mzML.gz
