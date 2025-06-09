@@ -186,7 +186,10 @@ class Config:
         for field in required_fields:
             if field not in self._config:
                 raise ValueError(f"Missing required configuration: '{field}'")
-            if self._config[field] in (None, "", []):
+            
+            if field == "inputFile" and self._config[field] == []:
+                raise ValueError("inputFile list cannot be empty")
+            elif self._config[field] in (None, "", []):
                 raise ValueError(f"Required configuration '{field}' cannot be empty")
 
         if self._config["inputType"] not in ("pepxml", "pin"):
