@@ -1,7 +1,4 @@
 import pytest
-import tempfile
-import os
-from pathlib import Path
 import yaml
 
 from optimhc.core.config import Config, DEFAULT_CONFIG, load_config, _deep_merge
