@@ -1,20 +1,18 @@
-# optiMHC
+# OptiMHC
 
-**optiMHC** is a rescoring pipeline for immunopeptidomics data. It enhances peptide identification by integrating multiple feature generators and machine learning-based rescoring. The package is modular, supports extensible feature generation, and provides both command-line and programmatic interfaces.
+**OptiMHC** is an optimum rescoring pipeline for immunopeptidomics data. It enhances peptide identification by integrating multiple feature generators and machine learning-based rescoring. 
 
 ## Quick Start
 
 ### Installation
 
-```bash
+<!-- ```bash
 pip install optimhc
-```
-
-Or install from source:
+``` -->
 
 ```bash
-git clone https://github.com/5h4ng/optiMHC.git
-cd optiMHC
+git clone https://github.com/5h4ng/OptiMHC.git
+cd OptiMHC
 pip install -e .
 ```
 
