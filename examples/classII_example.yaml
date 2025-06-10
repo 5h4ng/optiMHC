@@ -23,7 +23,7 @@ featureGenerator:
   - name: Basic
   - name: SpectraSimilarity
     params:
-      mzmlDir: ./examples/data
+      mzmlDir: ./data
       spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+
       model: AlphaPeptDeep_ms2_generic
       collisionEnergy: 28

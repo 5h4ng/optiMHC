@@ -3,7 +3,7 @@ inputType: pepxml
 inputFile:
   - ./data/AG20201214_FAIMS_DPB0101_DPA0201_93e6_1hr.pep.xml
 decoyPrefix: DECOY_
-outputDir: ./results
+outputDir: ./examples/results
 visualization: True
 removePreNxtAA: False
 numProcesses: 32
