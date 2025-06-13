@@ -56,7 +56,7 @@ Each feature generator is specified with its `name` and an optional `params` sub
 | Generator Name      | Example Parameters                                                                                                           | Description                                                                              |
 |---------------------|------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------|
 | `Basic`             | N/A                                                                                                                          | Generates basic sequence features.                                                       |
-| `SpectraSimilarity` | `mzmlDir: ./data`<br>`spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+`<br>`model: AlphaPeptDeep_ms2_generic`<br>`collisionEnergy: 28`<br>`instrument: LUMOS`<br>`tolerance: 20`<br>`numTopPeaks: 36`<br>`url: koina.wilhelmlab.org:443` | Computes features based on the similarity between experimental spectra and predicted spectra. The `spectrumIdPattern` is a regular expression used to extract mzML file names from spectrum IDs. The default pattern `(.+?)\.\d+\.\d+\.\d+` expects spectrum IDs in the format "filename.scan.scan.charge". The `tolerance` parameter (10-50 ppm) sets the mass tolerance for peak matching. See more options on https://koina.proteomicsdb.org/ |
+| `SpectralSimilarity` | `mzmlDir: ./data`<br>`spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+`<br>`model: AlphaPeptDeep_ms2_generic`<br>`collisionEnergy: 28`<br>`instrument: LUMOS`<br>`tolerance: 20`<br>`numTopPeaks: 36`<br>`url: koina.wilhelmlab.org:443` | Computes features based on the similarity between experimental spectra and predicted spectra. The `spectrumIdPattern` is a regular expression used to extract mzML file names from spectrum IDs. The default pattern `(.+?)\.\d+\.\d+\.\d+` expects spectrum IDs in the format "filename.scan.scan.charge". The `tolerance` parameter (10-50 ppm) sets the mass tolerance for peak matching. See more options on https://koina.proteomicsdb.org/ |
 | `DeepLC`            | `calibrationCriteria: expect`<br>`lowerIsBetter: True`<br>`calibrationSize: 0.1`                                             | Creates retention time predictions by calibrating using DeepLC. The `calibrationCriteria` should be set to a score field in the PSM data (e.g., expect, xcorr, hyperscore).                          |
 | `OverlappingPeptide`     | `minOverlapLength: 7`<br>`minLength: 7`<br>`maxLength: 20`<br>`overlappingScore: expect`                                           | Generates overlapping peptide features for grouping similar peptides. The `overlappingScore` should be set to a score field in the PSM data (e.g., expect, xcorr, hyperscore).                         |
 | `PWM`               | `class: I`                                                                                                                   | Generates position weight matrix features for MHC class I and class II peptides.                        |
@@ -102,7 +102,7 @@ allele:
 # Feature generator configurations
 featureGenerator:
   - name: Basic
-  - name: SpectraSimilarity
+  - name: SpectralSimilarity
     params:
       mzmlDir: ./examples/data
       spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+
@@ -177,11 +177,11 @@ Here are some examples:
 </details>
 
 <details>
-<summary>SpectraSimilarity with parameters</summary>
+<summary>SpectralSimilarity with parameters</summary>
 
 ```bash
 --featureGenerator '{
-  "name": "SpectraSimilarity",
+  "name": "SpectralSimilarity",
   "params": {
     "mzmlDir": "./data",
     "spectrumIdPattern": "(.+?)\.\d+\.\d+\.\d+",
@@ -203,7 +203,7 @@ Here are some examples:
 ```bash
 --featureGenerator '{"name": "Basic"}' \
 --featureGenerator '{
-  "name": "SpectraSimilarity",
+  "name": "SpectralSimilarity",
   "params": {
     "mzmlDir": "./data",
     "model": "AlphaPeptDeep_ms2_generic"
@@ -228,7 +228,7 @@ Here are some examples:
 - All JSON strings must be valid JSON format (e.g., use `true` instead of `True`, `false` instead of `False`)
 - For complex parameters, you can use a single line with proper escaping:
 ```bash
---featureGenerator '{"name":"SpectraSimilarity","params":{"mzmlDir":"./data","model":"AlphaPeptDeep_ms2_generic"}}'
+--featureGenerator '{"name":"SpectralSimilarity","params":{"mzmlDir":"./data","model":"AlphaPeptDeep_ms2_generic"}}'
 ```
 
 </details>
