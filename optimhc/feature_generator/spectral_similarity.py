@@ -1,4 +1,4 @@
-# feature_generator/spectra_similarity.py
+# feature_generator/spectral_similarity.py
 
 import logging
 import pandas as pd
@@ -15,7 +15,7 @@ from koinapy import Koina
 logger = logging.getLogger(__name__)
 
 
-class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
+class SpectralSimilarityFeatureGenerator(BaseFeatureGenerator):
     """
     Feature generator for calculating similarity between experimental and predicted spectra.
 
@@ -74,7 +74,7 @@ class SpectraSimilarityFeatureGenerator(BaseFeatureGenerator):
         self._raw_predictions = None
 
         logger.info(
-            f"Initializing SpectraSimilarityFeatureGenerator with {len(peptides)} PSMs"
+            f"Initializing SpectralSimilarityFeatureGenerator with {len(peptides)} PSMs"
         )
         logger.info(f"Using model: {self.model_type}")
 

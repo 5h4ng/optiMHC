@@ -2,7 +2,7 @@
 feature_generation.py
 
 Implements feature generation logic for optiMHC, supporting multiple feature generators
-(Basic, OverlappingPeptide, PWM, MHCflurry, NetMHCpan, NetMHCIIpan, DeepLC, SpectraSimilarity, etc.).
+(Basic, OverlappingPeptide, PWM, MHCflurry, NetMHCpan, NetMHCIIpan, DeepLC, SpectralSimilarity, etc.).
 """
 import os
 import logging
@@ -242,13 +242,13 @@ def generate_features(psms, config):
                 del deeplc_generator, deeplc_features
                 gc.collect()
 
-            elif generator_type == "SpectraSimilarity":
-                from optimhc.feature_generator.spectra_similarity import SpectraSimilarityFeatureGenerator
+            elif generator_type == "SpectralSimilarity":
+                from optimhc.feature_generator.spectral_similarity import SpectralSimilarityFeatureGenerator
                 # Match PSMs with the spectra
                 mzML_dir = generator_params.get("mzmlDir", None)
                 if mzML_dir is None:
                     logger.error(
-                        "mzML_dir is not provided for SpectraSimilarity feature generator."
+                        "mzML_dir is not provided for SpectralSimilarity feature generator."
                     )
                     continue
 
@@ -309,16 +309,16 @@ def generate_features(psms, config):
                 model_type = generator_params.get("model", None)
                 if model_type is None:
                     logger.error(
-                        "Model type is not provided for SpectraSimilarity feature generator."
+                        "Model type is not provided for SpectralSimilarity feature generator."
                     )
                     raise ValueError(
-                        "Model type is required for SpectraSimilarity feature generator."
+                        "Model type is required for SpectralSimilarity feature generator."
                     )
 
                 collision_energy = generator_params.get("collisionEnergy", None)
                 instrument = generator_params.get("instrument", None)
                 fragmentation_type = generator_params.get("fragmentationType", None)
-                spectra_similarity_generator = SpectraSimilarityFeatureGenerator(
+                spectral_similarity_generator = SpectralSimilarityFeatureGenerator(
                     spectrum_ids=psms.spectrum_ids,
                     peptides=psms.peptides,
                     charges=psms.charges,
@@ -345,22 +345,22 @@ def generate_features(psms, config):
                     tolerance_ppm=generator_params.get("tolerance", 20),
                 )
 
-                spectra_similarity_features = (
-                    spectra_similarity_generator.generate_features()
+                spectral_similarity_features = (
+                    spectral_similarity_generator.generate_features()
                 )
                 psms.add_features(
-                    spectra_similarity_features,
+                    spectral_similarity_features,
                     psms_key=[
                         psms.spectrum_column,
                         psms.peptide_column,
                         psms.charge_column,
                     ],
-                    feature_key=spectra_similarity_generator.id_column,
+                    feature_key=spectral_similarity_generator.id_column,
                     source="SpectraSimilarity",
                 )
                 del (
-                    spectra_similarity_generator,
-                    spectra_similarity_features,
+                    spectral_similarity_generator,
+                    spectral_similarity_features,
                     mz_file_paths,
                     mz_file_names,
                 )

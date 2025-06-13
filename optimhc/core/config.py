@@ -216,7 +216,7 @@ class Config:
         # TODO: Validate feature generator configuration
         valid_generators = {
             "Basic", "OverlappingPeptide", "PWM", "MHCflurry", 
-            "NetMHCpan", "NetMHCIIpan", "DeepLC", "SpectraSimilarity"
+            "NetMHCpan", "NetMHCIIpan", "DeepLC", "SpectralSimilarity"
         }
         for fg in self._config["featureGenerator"]:
             if fg["name"] not in valid_generators:

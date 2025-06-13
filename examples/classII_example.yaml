@@ -21,7 +21,7 @@ allele:
 # Feature generator configurations
 featureGenerator:
   - name: Basic
-  - name: SpectraSimilarity
+  - name: SpectralSimilarity
     params:
       mzmlDir: ./data
       spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+
