@@ -39,7 +39,7 @@ def feature_generator_form(existing_generators: List[Dict[str, Any]] = None) -> 
             "lowerIsBetter": [True, False],
             "calibrationSize": [0.1, 0.2, 0.3]
         },
-        "SpectraSimilarity": {
+        "SpectralSimilarity": {
             "model": ["AlphaPeptDeep_ms2_generic", "AlphaPeptDeep_ms2_HCD", "AlphaPeptDeep_ms2_CID"],
             "instrument": ["LUMOS", "QE", "VELOS", "FUSION"],
             "numTopPeaks": [10, 20, 36, 50]
@@ -365,22 +365,22 @@ def validate_config(config: Dict[str, Any]) -> List[str]:
     if not generators:
         errors.append("At least one feature generator is required")
     
-    # Check if SpectraSimilarity has required parameters
+    # Check if SpectralSimilarity has required parameters
     for gen in generators:
-        if gen.get("name") == "SpectraSimilarity":
+        if gen.get("name") == "SpectralSimilarity":
             params = gen.get("params", {})
             # Check instrument
             instrument = params.get("instrument")
             if instrument and instrument not in ["QE", "LUMOS", "TIMSTOF", "SCIEXTOF"]:
-                errors.append(f"Invalid instrument '{instrument}' for SpectraSimilarity. Must be one of: QE, LUMOS, TIMSTOF, SCIEXTOF")
+                errors.append(f"Invalid instrument '{instrument}' for SpectralSimilarity. Must be one of: QE, LUMOS, TIMSTOF, SCIEXTOF")
             
             # Check mzML directory
             if "mzmlDir" not in params:
-                errors.append("SpectraSimilarity requires 'mzmlDir' parameter")
+                errors.append("SpectralSimilarity requires 'mzmlDir' parameter")
             
             # Check spectrum ID pattern
             if "spectrumIdPattern" not in params:
-                errors.append("SpectraSimilarity requires 'spectrumIdPattern' parameter to extract mzML filenames from spectrum IDs")
+                errors.append("SpectralSimilarity requires 'spectrumIdPattern' parameter to extract mzML filenames from spectrum IDs")
     
     # Check rescore settings
     rescore = config.get("rescore", {})

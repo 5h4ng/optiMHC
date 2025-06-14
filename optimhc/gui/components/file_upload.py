@@ -68,7 +68,7 @@ def input_path_field(input_type: str, value: str = "", placeholder: str = "") ->
 
 def yaml_example(example_type: str = "class_i") -> str:
     """
-    Return an example YAML configuration.
+    Return an example YAML configuration by reading from example files.
     
     Args:
         example_type: Type of example (class_i or class_ii)
@@ -76,30 +76,31 @@ def yaml_example(example_type: str = "class_i") -> str:
     Returns:
         Example YAML configuration as a string
     """
+    # Get the path to the examples directory
+    current_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    )
+    examples_dir = os.path.join(current_dir, "examples")
+    
+    # Determine which example file to read
     if example_type.lower() == "class_i":
-        example_config = """
+        example_file = os.path.join(examples_dir, "classI_example.yaml")
+        default_config = """
 experimentName: class_I_example
 inputType: pepxml
 inputFile:
-  - ./examples/data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml
+  - ./data/YE_20180428_SK_HLA_A0202_3Ips_a50mio_R1_01.pep.xml
 decoyPrefix: DECOY_
 outputDir: ./examples/results/class_I_example
 visualization: True
 removePreNxtAA: False
 numProcesses: 4
 showProgress: True
-
-# Mapping of FULL modified residue masses (residue+modification) to UNIMOD IDs
-# These masses can be found in pepXML parameters section
 modificationMap:
-  "147.035385": "UNIMOD:35"  # Oxidation (M) - full modified residue mass
-  "160.030649": "UNIMOD:4"   # Carbamidomethyl (C) - full modified residue mass
-
-# Allele settings
+  "147.035385": "UNIMOD:35"  # Oxidation (M)
+  "160.030649": "UNIMOD:4"   # Carbamidomethyl (C)
 allele:
   - HLA-A*02:02
-
-# Feature generator configurations
 featureGenerator:
   - name: Basic
   - name: PWM
@@ -107,91 +108,52 @@ featureGenerator:
       class: I
   - name: MHCflurry
   - name: NetMHCpan
-  - name: SpectraSimilarity
-    params:
-      mzmlDir: ./examples/data
-      spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+
-      model: AlphaPeptDeep_ms2_generic
-      collisionEnergy: 28
-      instrument: LUMOS
-      tolerance: 20
-      numTopPeaks: 36
-      url: koina.wilhelmlab.org:443
-  - name: DeepLC
-    params:
-      calibrationCriteria: expect
-      lowerIsBetter: True
-      calibrationSize: 0.1
-  - name: OverlappingPeptide
-    params:
-      minOverlapLength: 7
-      minLength: 7
-      maxLength: 20
-      overlappingScore: expect
-
-# Rescore settings
 rescore:
   testFDR: 0.01
   model: Percolator
   numJobs: 4
 """
     else:  # class_ii
-        example_config = """
+        example_file = os.path.join(examples_dir, "classII_example.yaml")
+        default_config = """
 experimentName: class_II_example
 inputType: pepxml
 inputFile:
-  - ./examples/data/AG20201214_FAIMS_DPB0101_DPA0201_93e6_1hr.pep.xml
+  - ./data/AG20201214_FAIMS_DPB0101_DPA0201_93e6_1hr.pep.xml
 decoyPrefix: DECOY_
 outputDir: ./examples/results/class_II_example
 visualization: True
 removePreNxtAA: False
 numProcesses: 4
 showProgress: True
-
-# Mapping of FULL modified residue masses (residue+modification) to UNIMOD IDs
-# These masses can be found in pepXML parameters section
 modificationMap:
-  "147.035385": "UNIMOD:35"  # Oxidation (M) - full modified residue mass
-  "160.030649": "UNIMOD:4"   # Carbamidomethyl (C) - full modified residue mass
-
-# Allele settings
+  "147.035385": "UNIMOD:35"  # Oxidation (M)
+  "160.030649": "UNIMOD:4"   # Carbamidomethyl (C)
 allele:
   - HLA-DPA1*02:01-DPB1*01:01
-
-# Feature generator configurations
 featureGenerator:
   - name: Basic
   - name: PWM
     params:
       class: II
   - name: NetMHCIIpan
-  - name: SpectraSimilarity
-    params:
-      mzmlDir: ./examples/data
-      spectrumIdPattern: (.+?)\.\d+\.\d+\.\d+
-      model: AlphaPeptDeep_ms2_generic
-      collisionEnergy: 28
-      instrument: LUMOS
-      tolerance: 20
-      numTopPeaks: 36
-      url: koina.wilhelmlab.org:443
-  - name: DeepLC
-    params:
-      calibrationCriteria: expect
-      lowerIsBetter: True
-      calibrationSize: 0.1
-  - name: OverlappingPeptide
-    params:
-      minOverlapLength: 8
-      minLength: 9
-      maxLength: 50
-      overlappingScore: expect
-
-# Rescore settings
 rescore:
   testFDR: 0.01
   model: Percolator
   numJobs: 4
 """
     
-    return example_config 
+    try:
+        if not os.path.exists(example_file):
+            st.warning(f"Example file not found: {example_file}, using default configuration")
+            return default_config
+            
+        with open(example_file, 'r') as f:
+            content = f.read()
+            if not content:
+                st.warning(f"Example file is empty: {example_file}, using default configuration")
+                return default_config
+            return content
+    except Exception as e:
+        st.warning(f"Error reading example file: {str(e)}, using default configuration")
+        return default_config 

@@ -117,17 +117,17 @@ def feature_generator_form(existing_generators: List[Dict[str, Any]] = None) -> 
         
         feature_generators.append({"name": "DeepLC", "params": deeplc_params})
     
-    # SpectraSimilarity feature generator (with AlphaPeptDeep as default)
-    if st.checkbox("SpectraSimilarity", value="SpectraSimilarity" in existing_gen_dict or not existing_generators, key="spectra_similarity_gen"):
+    # SpectralSimilarity feature generator (with AlphaPeptDeep as default)
+    if st.checkbox("SpectralSimilarity", value="SpectralSimilarity" in existing_gen_dict or not existing_generators, key="spectra_similarity_gen"):
         ss_params = {}
         
-        st.markdown("#### SpectraSimilarity Settings")
+        st.markdown("#### SpectralSimilarity Settings")
         
         model = st.selectbox(
             "Model",
             options=["AlphaPeptDeep_ms2_generic"],
             index=["AlphaPeptDeep_ms2_generic"].index(
-                existing_gen_dict.get("SpectraSimilarity", {}).get("model", "AlphaPeptDeep_ms2_generic")
+                existing_gen_dict.get("SpectralSimilarity", {}).get("model", "AlphaPeptDeep_ms2_generic")
             ),
             key="spectra_similarity_model",
             help="Prediction model for theoretical spectra"
@@ -138,7 +138,7 @@ def feature_generator_form(existing_generators: List[Dict[str, Any]] = None) -> 
             "Instrument",
             options=["QE", "LUMOS", "TIMSTOF", "SCIEXTOF"],
             index=["QE", "LUMOS", "TIMSTOF", "SCIEXTOF"].index(
-                existing_gen_dict.get("SpectraSimilarity", {}).get("instrument", "LUMOS")
+                existing_gen_dict.get("SpectralSimilarity", {}).get("instrument", "LUMOS")
             ),
             key="spectra_similarity_instrument",
             help="Available instruments: QE, LUMOS, TIMSTOF, SCIEXTOF"
@@ -148,7 +148,7 @@ def feature_generator_form(existing_generators: List[Dict[str, Any]] = None) -> 
         # mzML directory path
         mzml_dir = st.text_input(
             "mzML Directory Path",
-            value=existing_gen_dict.get("SpectraSimilarity", {}).get("mzmlDir", "./data"),
+            value=existing_gen_dict.get("SpectralSimilarity", {}).get("mzmlDir", "./data"),
             key="spectra_similarity_mzml_dir",
             help="Path to directory containing mzML files"
         )
@@ -158,7 +158,7 @@ def feature_generator_form(existing_generators: List[Dict[str, Any]] = None) -> 
         # Spectrum ID pattern
         spectrum_id_pattern = st.text_input(
             "Spectrum ID Pattern",
-            value=existing_gen_dict.get("SpectraSimilarity", {}).get("spectrumIdPattern", "(.+?)\\.\\d+\\.\\d+\\.\\d+"),
+            value=existing_gen_dict.get("SpectralSimilarity", {}).get("spectrumIdPattern", "(.+?)\\.\\d+\\.\\d+\\.\\d+"),
             key="spectra_similarity_spectrum_id_pattern",
             help="Regular expression pattern to extract mzML filename from spectrum IDs. Default pattern: (.+?)\\.\\d+\\.\\d+\\.\\d+"
         )
@@ -169,7 +169,7 @@ def feature_generator_form(existing_generators: List[Dict[str, Any]] = None) -> 
             "Collision Energy",
             min_value=20,
             max_value=40,
-            value=int(existing_gen_dict.get("SpectraSimilarity", {}).get("collisionEnergy", 28)),
+            value=int(existing_gen_dict.get("SpectralSimilarity", {}).get("collisionEnergy", 28)),
             key="spectra_similarity_collision_energy",
             help="Collision energy used during acquisition (typical range: 25-30)"
         )
@@ -179,7 +179,7 @@ def feature_generator_form(existing_generators: List[Dict[str, Any]] = None) -> 
             "Tolerance (ppm)",
             min_value=10,
             max_value=50,
-            value=int(existing_gen_dict.get("SpectraSimilarity", {}).get("tolerance", 20)),
+            value=int(existing_gen_dict.get("SpectralSimilarity", {}).get("tolerance", 20)),
             step=5,
             key="spectra_similarity_tolerance",
             help="Mass tolerance in ppm for peak matching (10-50 ppm)"
@@ -190,7 +190,7 @@ def feature_generator_form(existing_generators: List[Dict[str, Any]] = None) -> 
             "Number of Top Peaks",
             min_value=10,
             max_value=100,
-            value=int(existing_gen_dict.get("SpectraSimilarity", {}).get("numTopPeaks", 36)),
+            value=int(existing_gen_dict.get("SpectralSimilarity", {}).get("numTopPeaks", 36)),
             step=2,
             key="spectra_similarity_num_top_peaks",
             help="Number of most intense peaks to consider for matching"
@@ -199,14 +199,14 @@ def feature_generator_form(existing_generators: List[Dict[str, Any]] = None) -> 
         
         url = st.text_input(
             "API URL",
-            value=existing_gen_dict.get("SpectraSimilarity", {}).get("url", "koina.wilhelmlab.org:443"),
+            value=existing_gen_dict.get("SpectralSimilarity", {}).get("url", "koina.wilhelmlab.org:443"),
             key="spectra_similarity_url",
             help="AlphaPept API URL (default: koina.wilhelmlab.org:443)"
         )
         if url:
             ss_params["url"] = url
         
-        feature_generators.append({"name": "SpectraSimilarity", "params": ss_params})
+        feature_generators.append({"name": "SpectralSimilarity", "params": ss_params})
     
     # OverlappingPeptide feature generator
     if st.checkbox("OverlappingPeptide", value="OverlappingPeptide" in existing_gen_dict, key="overlapping_peptide_gen"):
