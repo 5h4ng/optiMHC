@@ -15,6 +15,6 @@ To install the development version:
 
 .. code-block:: bash
 
-    git clone https://github.com/yourusername/optimhc.git
+    git clone https://github.com/5h4ng/optimhc.git
     cd optimhc
     pip install -e . 

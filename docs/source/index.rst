@@ -18,15 +18,7 @@ Welcome to optiMHC's documentation!
 Introduction
 ------------
 
-optiMHC is a high-performance rescoring pipeline for immunopeptidomics data to significantly enhance peptide identification performance.
-
-Features
---------
-
-* High-performance peptide identification
-* Advanced rescoring algorithms
-* Comprehensive documentation
-* Easy to use API
+optiMHC is a optimum rescoring pipeline for immunopeptidomics data to significantly enhance peptide identification performance.
 
 Indices and tables
 ==================

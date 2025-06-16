@@ -119,7 +119,7 @@ Feature Generator Submodules
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: optimhc.feature_generator.spectra_similarity
+.. automodule:: optimhc.feature_generator.spectral_similarity
    :members:
    :undoc-members:
    :show-inheritance:
