@@ -8,7 +8,6 @@ import os
 import logging
 import re
 import gc
-import psutil
 
 # The reason why we need to import the feature generators here is that 
 # the package 'mhctools' affect the logging configuration of optiMHC.
@@ -17,20 +16,6 @@ from optimhc.feature_generator.netMHCpan import NetMHCpanFeatureGenerator
 from optimhc.feature_generator.netMHCIIpan import NetMHCIIpanFeatureGenerator
 
 logger = logging.getLogger(__name__)
-
-
-def print_memory(prefix=""):
-    """
-    Log the current process memory usage in megabytes (MB) at DEBUG level.
-
-    Parameters
-    ----------
-    prefix : str, optional
-        A prefix for the log message, by default an empty string.
-    """
-    process = psutil.Process(os.getpid())
-    mem = process.memory_info().rss / 1024 / 1024
-    logger.debug(f"{prefix} Memory usage: {mem:.2f} MB")
 
 
 # TODO: refactor the code to pass config as a parameter to the generators
@@ -77,7 +62,6 @@ def generate_features(psms, config):
             generator_type = generator_config.get("name")
             logger.info(f"Generating features with {generator_type}...")
             generator_params = generator_config.get("params", {})
-            print_memory(f"Before feature generator {generator_type}")
 
             if generator_type == "OverlappingPeptide":
                 from optimhc.feature_generator.overlapping_peptide import (
@@ -368,5 +352,3 @@ def generate_features(psms, config):
 
             else:
                 logger.warning(f"Unknown feature generator: {generator_type}, skipping...")
-
-            print_memory(f"After cleaning up {generator_type}")
